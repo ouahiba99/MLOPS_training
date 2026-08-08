@@ -1,5 +1,3 @@
-<img width="972" height="1046" alt="End-to-End MLOps Architecture - visual selection" src="https://github.com/user-attachments/assets/859176b9-5d4f-426a-aed1-b135feb36cdc" /># MLOps Engineering Training Program
-
 ## Qafza Tech — 12-Week Applied Program
 
 This repository contains my work and projects for the **MLOps Engineering Training Program** at **[Qafza Tech](https://www.qafzatech.com)**.
@@ -160,6 +158,7 @@ Some of the main things I will practice are:
 # 🏗️ Final Project
 
 The final goal is to connect everything together.
+<img width="972" height="1046" alt="End-to-End MLOps Architecture - visual selection" src="https://github.com/user-attachments/assets/859176b9-5d4f-426a-aed1-b135feb36cdc" /># MLOps Engineering Training Program
 
 ![Uploading E<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">

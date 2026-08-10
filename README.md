@@ -151,22 +151,7 @@ By the end of the program, I want to be comfortable with the full ML lifecycle, 
 
 Some of the main things I will practice are:
 
-* 🔁 Building reproducible ML pipelines
-* 🛡️ Preventing data leakage
-* 🧪 Training and evaluating ML models
-* 🚀 Building ML APIs
-* 🐳 Containerizing applications
-* 🔄 Building ETL pipelines
-* 🗃️ Versioning datasets and models
-* 📊 Tracking ML experiments
-* 🏷️ Managing model versions
-* ⚡ Scaling ML workloads
-* 🧩 Managing production features
-* 🍽️ Serving ML models
-* 📈 Monitoring ML applications
-* 🔧 Building CI/CD pipelines
-* 🔂 Automating model retraining
-* 🏗️ Managing infrastructure with Terraform
+![alt text](<_- visual selection (2).svg>)
 
 ---
 
@@ -174,21 +159,7 @@ Some of the main things I will practice are:
 
 The final goal is to connect everything together.
 
-```mermaid
-graph TD
-    A[Olist Dataset] --> B[ETL]
-    B --> C[Feature Engineering]
-    C --> D[Feature Store]
-    D --> E[Model Training]
-    E --> F[MLflow]
-    F --> G[Model Registry]
-    G --> H[FastAPI / Ray Serve]
-    H --> I[Docker]
-    I --> J[Deployment]
-    J --> K[Monitoring]
-    K --> L[Retraining]
-    L --> E
-```
+![alt text](<graph TD - visual selection.svg>)
 
 The idea is to have a system where new data can go through the pipeline, the model can be retrained when necessary, and the deployed service can be monitored.
 
@@ -240,21 +211,7 @@ I'm also using this program to strengthen my practical knowledge of tools that a
 
 # 📅 Timeline
 
-```text
-Week 01 → ML Pipeline
-Week 02 → Deep Learning
-Week 03 → FastAPI
-Week 04 → Docker
-Week 05 → ETL
-Week 06 → DVC
-Week 07 → MLflow
-Week 08 → Ray
-Week 09 → Feast
-Week 10 → Monitoring
-Week 11 → Retraining & CI/CD
-Week 12 → Terraform
-Final   → End-to-End MLOps Capstone
-```
+![alt text](<_- visual selection (1).svg>)
 
 ---
 

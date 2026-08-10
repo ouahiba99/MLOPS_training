@@ -159,7 +159,7 @@ Some of the main things I will practice are:
 
 The final goal is to connect everything together.
 
-![alt text](<graph TD - visual selection.svg>)
+![alt text](<_- visual selection (3).svg>)
 
 The idea is to have a system where new data can go through the pipeline, the model can be retrained when necessary, and the deployed service can be monitored.
 

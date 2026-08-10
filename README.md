@@ -14,7 +14,7 @@ Throughout the program, I will be working with the **Olist Brazilian E-Commerce 
 
 The main project is based on an e-commerce use case:
 
-> **Predict whether an order will be delivered late or on time.**
+**Predict whether an order will be delivered late or on time.**
 
 Instead of only training a model, the goal is to build the complete system around it.
 

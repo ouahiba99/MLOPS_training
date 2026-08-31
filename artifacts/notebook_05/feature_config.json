@@ -1,0 +1,57 @@
+{
+  "target": "is_late",
+  "high_cardinality_cols_target_encoded": [
+    "customer_zip_code_prefix",
+    "customer_city",
+    "seller_zip_code_prefix",
+    "seller_city"
+  ],
+  "low_cardinality_cols_ohe": [
+    "customer_state",
+    "seller_state"
+  ],
+  "numeric_cols": [
+    "customer_zip_code_prefix",
+    "customer_city",
+    "item_count",
+    "unique_products",
+    "unique_sellers",
+    "total_item_value",
+    "total_freight_value",
+    "payment_count",
+    "total_payment_value",
+    "max_payment_installments",
+    "seller_zip_code_prefix",
+    "seller_city",
+    "distance_km",
+    "estimated_delivery_days",
+    "approval_delay_hours",
+    "purchase_month",
+    "purchase_weekday",
+    "purchase_hour",
+    "is_weekend",
+    "freight_ratio",
+    "price_per_item",
+    "payment_ratio",
+    "is_multi_seller",
+    "is_multi_product"
+  ],
+  "leakage_cols_dropped": [
+    "order_delivered_customer_date",
+    "order_delivered_carrier_date",
+    "review_count",
+    "average_review_score",
+    "delivery_delay_days",
+    "order_id",
+    "customer_id",
+    "customer_unique_id",
+    "order_status",
+    "order_purchase_timestamp",
+    "order_approved_at",
+    "order_estimated_delivery_date"
+  ],
+  "target_encoder_m": 50,
+  "target_encoder_global_mean": 0.09023736543615714,
+  "num_features_out": 53,
+  "random_state": 42
+}

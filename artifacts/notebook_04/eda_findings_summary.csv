@@ -1,0 +1,8 @@
+area,finding,implication
+Target,The training late rate is 9.02%.,"Use the target prevalence as the baseline for interpreting model performance, particularly precision, recall, and class-specific metrics."
+Missingness,order_delivered_carrier_date has the largest absolute late-rate difference between missing and present observations (90.98 percentage points).,Investigate whether missingness reflects an operational process state. A missingness indicator may be useful if the missing state is known at prediction time.
+Numerical,payment_count has the strongest absolute skewness (22.42).,Consider transformations or robust modeling approaches where skewness materially affects performance. Tree-based models are generally less sensitive to monotonic feature skew.
+Categorical,"customer_city has 3,747 unique categories.",Avoid blindly applying one-hot encoding to high-cardinality variables. Consider rare-category grouping or another leakage-safe encoding strategy.
+Temporal,"Order timestamps provide calendar structure that can be analyzed by month, weekday, hour, and weekend status.",Engineer prediction-time calendar features while preserving the temporal train/validation/test split.
+Leakage,5 columns were flagged as potentially post-outcome information.,Exclude these variables from the model feature set unless their availability at prediction time is explicitly established.
+Evaluation Strategy,Order data has an explicit temporal dimension.,The temporal out-of-time split is appropriate because it evaluates the model on later orders rather than randomly mixing historical and future observations.

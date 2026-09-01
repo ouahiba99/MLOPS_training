@@ -1,0 +1,29 @@
+column,prediction_time_status,reason
+order_id,REVIEW,Identifier; not a predictive feature.
+customer_id,REVIEW,Identifier; not a predictive feature.
+order_status,REVIEW,Status can change after order placement; do not use unless the exact prediction timestamp is defined.
+order_purchase_timestamp,LIKELY_SAFE,Available when the order is placed.
+order_approved_at,REVIEW,"Available shortly after purchase, but safe only if prediction occurs after approval."
+order_delivered_carrier_date,POTENTIAL_LEAKAGE,Carrier delivery event occurs after the order is placed.
+order_delivered_customer_date,POTENTIAL_LEAKAGE,Actual customer delivery date is the outcome used to define is_late.
+order_estimated_delivery_date,LIKELY_SAFE,The promised/estimated delivery date is known before delivery.
+customer_unique_id,REVIEW,Identifier; not a predictive feature.
+customer_zip_code_prefix,LIKELY_SAFE,Customer location is available with the order.
+customer_city,LIKELY_SAFE,Customer location is available with the order.
+customer_state,LIKELY_SAFE,Customer location is available with the order.
+item_count,LIKELY_SAFE,Order-level item count is known from the order contents.
+unique_products,LIKELY_SAFE,Product count is known from the order contents.
+unique_sellers,LIKELY_SAFE,Seller count is known from the order contents.
+total_item_value,LIKELY_SAFE,Order value is known from the order contents.
+total_freight_value,LIKELY_SAFE,Freight value is known from the order/payment information.
+payment_count,LIKELY_SAFE,Payment count is known from the order/payment information.
+total_payment_value,LIKELY_SAFE,Payment value is known from the order/payment information.
+max_payment_installments,LIKELY_SAFE,Payment installment information is available with the order.
+review_count,POTENTIAL_LEAKAGE,Review information is only available after delivery.
+average_review_score,POTENTIAL_LEAKAGE,Customer review information is only available after delivery.
+seller_zip_code_prefix,LIKELY_SAFE,Seller location is available from the order/seller information.
+seller_city,LIKELY_SAFE,Seller location is available from the order/seller information.
+seller_state,LIKELY_SAFE,Seller location is available from the order/seller information.
+distance_km,LIKELY_SAFE,Distance is a pre-outcome geographic feature if calculated only from locations.
+delivery_delay_days,POTENTIAL_LEAKAGE,Derived directly from actual delivery versus estimated delivery.
+is_late,TARGET,Prediction target; never use as an input feature.

@@ -13,7 +13,6 @@ numeric__seller_zip_code_prefix
 numeric__seller_city
 numeric__distance_km
 numeric__estimated_delivery_days
-numeric__approval_delay_hours
 numeric__purchase_month
 numeric__purchase_weekday
 numeric__purchase_hour

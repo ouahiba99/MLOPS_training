@@ -1,5 +1,6 @@
 {
   "target": "is_late",
+  "prediction_point": "After order placement and payment/item/seller/customer information are known, once the promised delivery date exists. Not after payment approval, carrier pickup, customer delivery, or reviews.",
   "high_cardinality_cols_target_encoded": [
     "customer_zip_code_prefix",
     "customer_city",
@@ -25,7 +26,6 @@
     "seller_city",
     "distance_km",
     "estimated_delivery_days",
-    "approval_delay_hours",
     "purchase_month",
     "purchase_weekday",
     "purchase_hour",
@@ -46,12 +46,25 @@
     "customer_id",
     "customer_unique_id",
     "order_status",
-    "order_purchase_timestamp",
     "order_approved_at",
+    "order_purchase_timestamp",
     "order_estimated_delivery_date"
+  ],
+  "excluded_post_placement_features": [
+    "approval_delay_hours"
+  ],
+  "api_forbidden_fields": [
+    "is_late",
+    "delivery_delay_days",
+    "order_delivered_customer_date",
+    "order_delivered_carrier_date",
+    "review_count",
+    "average_review_score",
+    "order_approved_at",
+    "approval_delay_hours"
   ],
   "target_encoder_m": 50,
   "target_encoder_global_mean": 0.09023736543615714,
-  "num_features_out": 53,
+  "num_features_out": 52,
   "random_state": 42
 }

@@ -8,9 +8,9 @@
   ],
   "n_candidates_evaluated": 72,
   "final_model_family": "HistGradientBoosting",
-  "final_model_params": "{'learning_rate': 0.05, 'max_iter': 400, 'max_leaf_nodes': 47, 'min_samples_leaf': 15, 'l2_regularization': 2.0}",
+  "final_model_params": "{'learning_rate': 0.1, 'max_iter': 400, 'max_leaf_nodes': 31, 'min_samples_leaf': 20, 'l2_regularization': 2.0, 'class_weight': 'balanced'}",
   "final_model_uses_dense_input": true,
-  "optimal_decision_threshold": 0.6571539597188224,
+  "optimal_decision_threshold": 0.6204567106325278,
   "baseline_validation_metrics": {
     "average_precision": 0.0532789717365766,
     "roc_auc": 0.5,
@@ -20,116 +20,118 @@
     "accuracy": 0.9467210282634234
   },
   "final_validation_metrics": {
-    "average_precision": 0.11030916685963477,
-    "roc_auc": 0.6475493008416409,
-    "f1": 0.1733643307871139,
-    "precision": 0.11651785714285715,
-    "recall": 0.33852140077821014,
-    "accuracy": 0.8280008292446963
+    "average_precision": 0.10816852879720124,
+    "roc_auc": 0.65515152375813,
+    "f1": 0.1690229343386742,
+    "precision": 0.1115257048092869,
+    "recall": 0.34889753566796367,
+    "accuracy": 0.8172206481929376
   },
   "final_test_metrics_default_threshold": {
-    "average_precision": 0.10722414333077976,
-    "roc_auc": 0.6265045704393739,
-    "f1": 0.16735480319295348,
-    "precision": 0.1135599551737019,
-    "recall": 0.3179916317991632,
-    "accuracy": 0.7909756771697071
+    "average_precision": 0.10495791029651502,
+    "roc_auc": 0.6258351329464166,
+    "f1": 0.16345412490362374,
+    "precision": 0.10834752981260648,
+    "recall": 0.33263598326359833,
+    "accuracy": 0.7750829187396352
   },
   "final_test_metrics_tuned_threshold": {
-    "average_precision": 0.10722414333077976,
-    "roc_auc": 0.6265045704393739,
-    "f1": 0.17169019458222054,
-    "precision": 0.13513513513513514,
-    "recall": 0.23535564853556484,
-    "accuracy": 0.8499861802100608
+    "average_precision": 0.10495791029651502,
+    "roc_auc": 0.6258351329464166,
+    "f1": 0.16854678168546783,
+    "precision": 0.12342079689018465,
+    "recall": 0.26569037656903766,
+    "accuracy": 0.8268380320619126
   },
   "test_confusion_matrix_default_threshold": [
     [
-      11143,
-      2373
+      10899,
+      2617
     ],
     [
-      652,
-      304
+      638,
+      318
     ]
   ],
   "test_confusion_matrix_tuned_threshold": [
     [
-      12076,
-      1440
+      11712,
+      1804
     ],
     [
-      731,
-      225
+      702,
+      254
     ]
   ],
   "top_features": [
     {
       "feature": "numeric__customer_zip_code_prefix",
-      "importance": 0.03841686603896445
+      "importance": 0.03486822283569343
     },
     {
       "feature": "numeric__estimated_delivery_days",
-      "importance": 0.02187485209900476
+      "importance": 0.020341207317287276
     },
     {
       "feature": "numeric__distance_km",
-      "importance": 0.01101823586235912
-    },
-    {
-      "feature": "numeric__total_freight_value",
-      "importance": 0.007423678429313016
+      "importance": 0.01139575349098862
     },
     {
       "feature": "numeric__seller_zip_code_prefix",
-      "importance": 0.005565703246416348
+      "importance": 0.00605260245912409
     },
     {
-      "feature": "numeric__approval_delay_hours",
-      "importance": 0.002617413882624581
+      "feature": "numeric__total_freight_value",
+      "importance": 0.005102701097485962
     },
     {
       "feature": "numeric__item_count",
-      "importance": 0.002320235609552174
+      "importance": 0.0011566868180422573
     },
     {
       "feature": "numeric__seller_city",
-      "importance": 0.0013349163660076545
+      "importance": 0.001121526173691803
     },
     {
-      "feature": "categorical__customer_state_PE",
-      "importance": 0.001258386708834902
-    },
-    {
-      "feature": "numeric__customer_city",
-      "importance": 0.000989439264678843
-    },
-    {
-      "feature": "numeric__purchase_hour",
-      "importance": 0.0009655852452543689
+      "feature": "categorical__customer_state_MG",
+      "importance": 0.0007930820617991025
     },
     {
       "feature": "numeric__unique_sellers",
-      "importance": 0.0007873435371629322
+      "importance": 0.0007590505051486424
     },
     {
-      "feature": "categorical__customer_state_SP",
-      "importance": 0.000629361269209433
+      "feature": "categorical__customer_state_PE",
+      "importance": 0.0005108952088411888
     },
     {
-      "feature": "numeric__purchase_weekday",
-      "importance": 0.0006163958393112318
+      "feature": "categorical__seller_state_RJ",
+      "importance": 0.00022523795064091634
     },
     {
-      "feature": "numeric__freight_ratio",
-      "importance": 0.0005119428582479352
+      "feature": "categorical__seller_state_MG",
+      "importance": 0.0002018625007794067
+    },
+    {
+      "feature": "categorical__customer_state_DF",
+      "importance": 0.00011863493444817796
+    },
+    {
+      "feature": "categorical__customer_state_MA",
+      "importance": 0.00010117183150455678
+    },
+    {
+      "feature": "numeric__unique_products",
+      "importance": 6.559575946944173e-05
     }
   ],
-  "n_features": 53,
-  "validation_test_gap_primary_metric": 0.003085,
+  "n_features": 52,
+  "validation_test_gap_primary_metric": 0.003211,
   "known_limitations": [
-    "Temporal drift: val/test orders are later in time than train \u2014 some gap is irreducible.",
-    "A broader Bayesian / random search would likely improve absolute AP further."
+    "Temporal drift: validation and test orders occur later than training orders, which may contribute to the observed performance gap.",
+    "A broader Bayesian or random search could potentially improve absolute Average Precision further.",
+    "The model scores are used for ranking and thresholding; they should not be interpreted as calibrated probabilities of lateness without a separate calibration step.",
+    "Accuracy is dominated by the on-time class and is not the serving quality metric."
   ],
   "random_state": 42
 }

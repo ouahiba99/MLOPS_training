@@ -75,7 +75,6 @@ services:
       MLFLOW_TRACKING_URI: http://mlflow:5000
     volumes:
       - ./models:/app/models:ro
-      - ./models:/app/models:ro
       - ./logs:/app/logs
     depends_on:
       mlflow-init:

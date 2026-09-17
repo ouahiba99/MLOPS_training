@@ -35,6 +35,9 @@ jobs:
       - name: Validate DVC metadata
         run: dvc status
 
+      - name: Bootstrap MLflow model registry
+        run: python -m scripts.log_to_mlflow
+
       - name: Ruff
         run: ruff check .
 

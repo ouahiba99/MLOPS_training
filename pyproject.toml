@@ -5,6 +5,7 @@ line-length = 88
 [tool.ruff]
 target-version = "py312"
 line-length = 88
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 # Sensible defaults: pyflakes + pycodestyle errors + import sorting.

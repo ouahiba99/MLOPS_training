@@ -2,7 +2,9 @@ name: CI/CD
 
 on:
   push:
+    branches: [main]
   pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -38,7 +40,9 @@ jobs:
         run: dvc status
 
       - name: Verify model artifact
-        run: test -f models/artifacts/final_model.joblib
+        run: |
+          ls -lah models/artifacts/
+          test -f models/artifacts/final_model.joblib
 
       - name: Initialize MLflow registry
         run: PYTHONPATH=. python scripts/log_to_mlflow.py
@@ -50,11 +54,25 @@ jobs:
 
           info = get_champion_version_info()
 
+          print(f"MLflow champion: {info}")
+
           assert info["registered_model_name"] == "olist_late_delivery"
           assert info["alias"] == "champion"
           assert info["version"] == 1
+          assert info["run_id"]
+          PY
 
-          print(f"MLflow champion: {info}")
+      - name: Verify MLflow runtime configuration
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          import mlflow
+          import os
+
+          print("MLFLOW_TRACKING_URI:", os.getenv("MLFLOW_TRACKING_URI"))
+          print("MLflow tracking URI:", mlflow.get_tracking_uri())
+
+          assert os.getenv("MLFLOW_TRACKING_URI") == "sqlite:///mlflow.db"
+          assert mlflow.get_tracking_uri() == "sqlite:///mlflow.db"
           PY
 
       - name: Ruff

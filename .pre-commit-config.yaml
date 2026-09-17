@@ -1,0 +1,29 @@
+# Task 3, item 9: catch problems before the push, not after.
+#
+# Deliberately fast-only here (lint, format, basic hygiene) — the full
+# test suite runs in CI (.github/workflows/ci.yml) on every push instead
+# of here, so commits stay quick. Install with:
+#   pre-commit install
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        # Backstop for item 4's DVC policy: catches someone `git add`-ing
+        # a model/artifact file directly instead of `dvc add`-ing it.
+        args: ["--maxkb=1000"]
+
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix]

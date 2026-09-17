@@ -1,0 +1,118 @@
+# "The database" in this stack is Postgres backing the MLflow tracking
+# server (item 5's registry needs a real database, not the local SQLite
+# file used for standalone dev) — not a copy of the raw Olist data
+# warehouse, which this inference-only service never queries at request
+# time; it takes a single order's fields directly in the API payload.
+#
+# One command on a clean machine:
+#   cp .env.example .env   # fill in real values first
+#   dvc pull                # populate models/artifacts/ (item 4)
+#   docker compose up --build
+#
+# Startup order is enforced by depends_on/healthchecks: postgres healthy
+# -> mlflow healthy -> mlflow-init registers the model and exits 0 -> api
+# starts. No manual steps in between.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # MLflow tracking server + registry. Artifacts it manages (the logged
+  # model) live in the mlflow-artifacts volume — "storage for the
+  # artifacts" that any container on this network can reach, not just
+  # whoever trained the model.
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/mlflow.Dockerfile
+    command: >
+      mlflow server
+      --backend-store-uri postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      --artifacts-destination /mlartifacts
+      --host 0.0.0.0
+      --port 5000
+      --allowed-hosts mlflow:5000,localhost:5001,127.0.0.1:5001
+    ports:
+      - "5001:5000"
+    volumes:
+      - mlflow-artifacts:/mlartifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # One-off: logs the real training run and registers the model with the
+  # "champion" alias, then exits. api won't start until this succeeds.
+  mlflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "scripts/log_to_mlflow.py"]
+    environment:
+      PYTHONPATH: /app
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      PYTHONPATH: /app
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      # The DVC-tracked preprocessing bundle (item 4) — mounted, not baked
+      # into the image, so retraining doesn't mean rebuilding it.
+      - ./models:/app/models:ro
+    depends_on:
+      mlflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Scrapes api:8000/metrics (item 10) and evaluates monitoring/alerts.yml.
+  # No Alertmanager wired in here — this proves the metrics/rules are real
+  # and loadable; routing alerts to Slack/PagerDuty is a config addition
+  # to Alertmanager, not a code change, so it's left out of this scaffold.
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  mlflow-artifacts:
+  prometheus-data:

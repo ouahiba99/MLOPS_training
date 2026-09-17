@@ -1,0 +1,133 @@
+# Task 3, item 10: "Decide what you would alert on, and write it down."
+#
+# Two severities, used deliberately:
+#   critical -> page: something is actually broken right now.
+#   warning  -> flag: something looks off and needs a human to look, but
+#               isn't an outage (e.g. drift, which unfolds over hours/days,
+#               not seconds).
+#
+# Validated with: promtool check rules monitoring/alerts.yml
+
+groups:
+  - name: olist-late-delivery-service
+    rules:
+      - alert: ServiceDown
+        expr: up{job="olist-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Olist late-delivery API is down"
+          description: >
+            Prometheus has not been able to scrape {{ $labels.instance }}
+            for 1 minute.
+
+      - alert: HighServerErrorRate
+        expr: |
+          sum(rate(api_requests_total{status_code=~"5.."}[5m]))
+          /
+          sum(rate(api_requests_total[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "5xx error rate above 5%"
+          description: >
+            {{ $value | humanizePercentage }} of requests failed with a
+            5xx over the last 5 minutes — the service itself is
+            misbehaving, not just rejecting bad input.
+
+      - alert: HighClientErrorRate
+        expr: |
+          sum(rate(api_requests_total{status_code=~"4.."}[15m]))
+          /
+          sum(rate(api_requests_total[15m]))
+          > 0.2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "4xx rate above 20%"
+          description: >
+            {{ $value | humanizePercentage }} of requests are being
+            rejected (400) over 15m — either a client integration bug, or
+            a real shift in incoming data quality (see
+            DataQualityWarningSpike below for the softer version of this).
+
+      - alert: HighPredictLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(api_request_latency_seconds_bucket{endpoint="/predict"}[5m])) by (le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "/predict p95 latency above 1s"
+          description: >
+            p95 latency for /predict has been above 1 second for 5
+            minutes (currently {{ $value }}s). The Great Expectations
+            pass alone measured ~20-30ms in testing, so this points at
+            something else — a slow MLflow registry round trip, GC
+            pressure, or genuine load.
+
+      - alert: PredictedLateRateDrift
+        expr: |
+          (
+            sum(rate(prediction_predicted_late_total{predicted_late="True"}[1d]))
+            /
+            sum(rate(prediction_predicted_late_total[1d]))
+          ) > 0.25
+          or
+          (
+            sum(rate(prediction_predicted_late_total{predicted_late="True"}[1d]))
+            /
+            sum(rate(prediction_predicted_late_total[1d]))
+          ) < 0.02
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "predicted_late rate has drifted from the ~9% training baseline"
+          description: >
+            predicted_late rate over the last day is
+            {{ $value | humanizePercentage }} — is_late's actual rate in
+            training was ~9% (target_encoder_global_mean in
+            feature_config.json). Investigate for input drift or a
+            pipeline bug before assuming deliveries genuinely got much
+            better or worse.
+
+      - alert: DataQualityWarningSpike
+        expr: |
+          sum(rate(data_quality_warning_total[1h]))
+          /
+          sum(rate(prediction_predicted_late_total[1h]))
+          > 0.1
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Over 10% of requests are triggering a data-quality warning"
+          description: >
+            {{ $value | humanizePercentage }} of predictions in the last
+            hour had at least one Great Expectations warning — an early,
+            specific drift signal (item 4). Check the column label on
+            data_quality_warning_total to see which field is shifting.
+
+      - alert: ModelRegistryFallback
+        expr: model_using_registry == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is running on the local fallback model, not the MLflow registry"
+          description: >
+            get_model() could not load {{ $labels.instance }}'s model
+            from the MLflow registry and fell back to the local
+            DVC-tracked artifact. This should not happen in a healthy
+            system — check the MLflow server and network path from the
+            API to it. A Gauge, checked with a plain == comparison, not a
+            rate: this is persistent state for the process's whole
+            lifetime, not a repeating event.

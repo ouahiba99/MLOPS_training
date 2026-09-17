@@ -1,0 +1,447 @@
+{
+  "name": "order_payload_suite",
+  "id": null,
+  "expectations": [
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "order_purchase_timestamp"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "order_estimated_delivery_date"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "customer_state"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "customer_city"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "customer_zip_code_prefix"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "seller_state"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "seller_city"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "seller_zip_code_prefix"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "item_count"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "unique_products"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "unique_sellers"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "total_item_value"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "total_freight_value"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "payment_count"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "total_payment_value"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "max_payment_installments"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_not_be_null",
+      "kwargs": {
+        "column": "distance_km"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_dateutil_parseable",
+      "kwargs": {
+        "column": "order_purchase_timestamp"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_dateutil_parseable",
+      "kwargs": {
+        "column": "order_estimated_delivery_date"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_pair_values_a_to_be_greater_than_b",
+      "kwargs": {
+        "column_A": "order_estimated_delivery_date",
+        "column_B": "order_purchase_timestamp"
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "item_count",
+        "min_value": 1.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "unique_products",
+        "min_value": 1.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "unique_sellers",
+        "min_value": 1.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "payment_count",
+        "min_value": 1.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "max_payment_installments",
+        "min_value": 1.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "total_item_value",
+        "min_value": 0.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "total_freight_value",
+        "min_value": 0.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "total_payment_value",
+        "min_value": 0.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "distance_km",
+        "min_value": 0.0
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_pair_values_a_to_be_greater_than_b",
+      "kwargs": {
+        "column_A": "item_count",
+        "column_B": "unique_products",
+        "or_equal": true
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_pair_values_a_to_be_greater_than_b",
+      "kwargs": {
+        "column_A": "item_count",
+        "column_B": "unique_sellers",
+        "or_equal": true
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "item_count",
+        "max_value": 20.0
+      },
+      "meta": {},
+      "severity": "warning"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "total_item_value",
+        "max_value": 2000.0
+      },
+      "meta": {},
+      "severity": "warning"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "total_freight_value",
+        "max_value": 200.0
+      },
+      "meta": {},
+      "severity": "warning"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "total_payment_value",
+        "max_value": 3000.0
+      },
+      "meta": {},
+      "severity": "warning"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "max_payment_installments",
+        "max_value": 24.0
+      },
+      "meta": {},
+      "severity": "warning"
+    },
+    {
+      "type": "expect_column_values_to_be_between",
+      "kwargs": {
+        "column": "distance_km",
+        "max_value": 4000.0
+      },
+      "meta": {},
+      "severity": "warning"
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "customer_state",
+        "value_set": [
+          "AC",
+          "AL",
+          "AP",
+          "AM",
+          "BA",
+          "CE",
+          "DF",
+          "ES",
+          "GO",
+          "MA",
+          "MT",
+          "MS",
+          "MG",
+          "PA",
+          "PB",
+          "PR",
+          "PE",
+          "PI",
+          "RJ",
+          "RN",
+          "RS",
+          "RO",
+          "RR",
+          "SC",
+          "SP",
+          "SE",
+          "TO"
+        ]
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "seller_state",
+        "value_set": [
+          "AC",
+          "AL",
+          "AP",
+          "AM",
+          "BA",
+          "CE",
+          "DF",
+          "ES",
+          "GO",
+          "MA",
+          "MT",
+          "MS",
+          "MG",
+          "PA",
+          "PB",
+          "PR",
+          "PE",
+          "PI",
+          "RJ",
+          "RN",
+          "RS",
+          "RO",
+          "RR",
+          "SC",
+          "SP",
+          "SE",
+          "TO"
+        ]
+      },
+      "meta": {},
+      "severity": "critical"
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "customer_state",
+        "value_set": [
+          "BA",
+          "CE",
+          "DF",
+          "ES",
+          "GO",
+          "MA",
+          "MG",
+          "MS",
+          "MT",
+          "PA",
+          "PB",
+          "PE",
+          "PI",
+          "PR",
+          "RJ",
+          "RN",
+          "RS",
+          "SC",
+          "SP"
+        ]
+      },
+      "meta": {},
+      "severity": "warning"
+    },
+    {
+      "type": "expect_column_values_to_be_in_set",
+      "kwargs": {
+        "column": "seller_state",
+        "value_set": [
+          "BA",
+          "DF",
+          "MG",
+          "PR",
+          "RJ",
+          "RS",
+          "SC",
+          "SP"
+        ]
+      },
+      "meta": {},
+      "severity": "warning"
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.22.0"
+  },
+  "notes": null
+}

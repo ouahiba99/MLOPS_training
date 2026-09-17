@@ -1,0 +1,45 @@
+# Single source of truth for paths and parameters.
+# Nothing in src/ or app/ should hardcode a path, a threshold, or a filename —
+# it all comes from here (or from an env var override — see src/config.py).
+
+paths:
+  data_dir: "data"
+  models_dir: "models"
+  artifacts_dir: "models/artifacts"   # encoders, scaler, imputer, feature_list, model — all saved by the notebooks
+
+model:
+  name: "olist_late_delivery"
+  version: "notebook06-histgbm-checkout-v2"   # from serving_config.json; bump when you register a new version in MLflow (item 5)
+  target_column: "is_late"
+  # F1-optimal threshold tuned on the validation split (serving_config.json).
+  # This is a policy knob, not a training parameter — it can change without retraining.
+  decision_threshold: 0.6204567106325278
+  # Score is a ranking score from HistGBM, not a calibrated probability — don't
+  # present it as one (see serving_config.json note).
+  score_is_calibrated_probability: false
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
+  log_dir: "logs"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+
+mlflow:
+  # Local SQLite backend so this scaffold works immediately, standalone.
+  # Point this at a real shared MLflow tracking server for team use — a
+  # per-developer local file defeats the point of a registry (see README).
+  tracking_uri: "sqlite:///mlflow.db"
+  registered_model_name: "olist_late_delivery"
+  # The service resolves models:/<registered_model_name>@<model_alias> at
+  # load time (scripts/log_to_mlflow.py sets this alias on a new version) —
+  # promoting a retrained model means moving the alias, not touching code.
+  model_alias: "champion"
+
+database:
+  # Local-dev default only — real deployments MUST override via the
+  # DATABASE_URL env var (docker-compose.yml does this from a git-ignored
+  # .env file). Never commit real credentials here.
+  url: "postgresql://app_user:app_password@localhost:5432/olist_predictions"

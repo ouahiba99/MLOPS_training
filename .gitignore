@@ -1,0 +1,30 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+
+# Raw data and trained artifacts are tracked with DVC (Task 3, item 4),
+# not with git directly. DVC manages its own .gitignore entries under
+# data/ and models/ for exactly the paths it tracks (see `dvc add`) —
+# don't blanket-ignore these directories here, or the .dvc metadata files
+# themselves (which DO need to be in git) get hidden too.
+
+logs/
+.pytest_cache/
+*.egg-info/
+.ruff_cache/
+
+# Local DVC remote (dev/demo only — see .dvc/config). Point this at S3/GCS/
+# Azure for real team use; either way, it's a cache duplicate, not source.
+/dvc-storage/
+
+# Local MLflow tracking DB (dev/demo only — see config/config.yaml). A
+# per-developer SQLite file defeats the point of a shared registry; point
+# MLFLOW_TRACKING_URI at a real server for team use. Regenerate locally
+# with `python scripts/log_to_mlflow.py`.
+/mlflow.db
+# Local MLflow artifact storage that goes with the sqlite backend above —
+# the model's actual serialized bytes, not just its metadata. Same
+# dev/demo caveat applies.
+/mlruns/

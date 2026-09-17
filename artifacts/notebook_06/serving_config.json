@@ -1,0 +1,21 @@
+{
+  "model_version": "notebook06-histgbm-checkout-v2",
+  "prediction_point": "After order placement and payment/item/seller/customer information are known, once the promised delivery date exists. Not after payment approval, carrier pickup, customer delivery, or reviews.",
+  "primary_output": "late_probability",
+  "optional_output": "predicted_late",
+  "decision_threshold": 0.6204567106325278,
+  "threshold_objective": "f1_max_on_validation",
+  "threshold_is_policy": true,
+  "score_is_calibrated_probability": false,
+  "note": "Return late_probability as the main API output. predicted_late is probability >= decision_threshold and can change without retraining. Do not advertise accuracy. Reject request fields listed in feature_config.api_forbidden_fields (delivery dates, reviews, order_approved_at, approval_delay_hours).",
+  "artifacts": {
+    "model": "/Users/ouahibaahmid/training mlops/artifacts/notebook_06/final_model.joblib",
+    "baseline": "/Users/ouahibaahmid/training mlops/artifacts/notebook_06/baseline_model.joblib",
+    "preprocessor": "/Users/ouahibaahmid/training mlops/artifacts/notebook_05/preprocessor.joblib",
+    "target_encoder": "/Users/ouahibaahmid/training mlops/artifacts/notebook_05/target_encoder.joblib",
+    "feature_names": "/Users/ouahibaahmid/training mlops/artifacts/notebook_05/feature_names.json",
+    "feature_config": "/Users/ouahibaahmid/training mlops/artifacts/notebook_05/feature_config.json"
+  },
+  "n_features": 52,
+  "random_state": 42
+}

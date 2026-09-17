@@ -1,0 +1,137 @@
+{
+  "target": "is_late",
+  "primary_metric": "average_precision",
+  "train_positive_rate": 0.09023736543615714,
+  "baseline_model": "DummyClassifier(strategy='most_frequent')",
+  "families_searched": [
+    "HistGradientBoosting"
+  ],
+  "n_candidates_evaluated": 72,
+  "final_model_family": "HistGradientBoosting",
+  "final_model_params": "{'learning_rate': 0.1, 'max_iter': 400, 'max_leaf_nodes': 31, 'min_samples_leaf': 20, 'l2_regularization': 2.0, 'class_weight': 'balanced'}",
+  "final_model_uses_dense_input": true,
+  "optimal_decision_threshold": 0.6204567106325278,
+  "baseline_validation_metrics": {
+    "average_precision": 0.0532789717365766,
+    "roc_auc": 0.5,
+    "f1": 0.0,
+    "precision": 0.0,
+    "recall": 0.0,
+    "accuracy": 0.9467210282634234
+  },
+  "final_validation_metrics": {
+    "average_precision": 0.10816852879720124,
+    "roc_auc": 0.65515152375813,
+    "f1": 0.1690229343386742,
+    "precision": 0.1115257048092869,
+    "recall": 0.34889753566796367,
+    "accuracy": 0.8172206481929376
+  },
+  "final_test_metrics_default_threshold": {
+    "average_precision": 0.10495791029651502,
+    "roc_auc": 0.6258351329464166,
+    "f1": 0.16345412490362374,
+    "precision": 0.10834752981260648,
+    "recall": 0.33263598326359833,
+    "accuracy": 0.7750829187396352
+  },
+  "final_test_metrics_tuned_threshold": {
+    "average_precision": 0.10495791029651502,
+    "roc_auc": 0.6258351329464166,
+    "f1": 0.16854678168546783,
+    "precision": 0.12342079689018465,
+    "recall": 0.26569037656903766,
+    "accuracy": 0.8268380320619126
+  },
+  "test_confusion_matrix_default_threshold": [
+    [
+      10899,
+      2617
+    ],
+    [
+      638,
+      318
+    ]
+  ],
+  "test_confusion_matrix_tuned_threshold": [
+    [
+      11712,
+      1804
+    ],
+    [
+      702,
+      254
+    ]
+  ],
+  "top_features": [
+    {
+      "feature": "numeric__customer_zip_code_prefix",
+      "importance": 0.03486822283569343
+    },
+    {
+      "feature": "numeric__estimated_delivery_days",
+      "importance": 0.020341207317287276
+    },
+    {
+      "feature": "numeric__distance_km",
+      "importance": 0.01139575349098862
+    },
+    {
+      "feature": "numeric__seller_zip_code_prefix",
+      "importance": 0.00605260245912409
+    },
+    {
+      "feature": "numeric__total_freight_value",
+      "importance": 0.005102701097485962
+    },
+    {
+      "feature": "numeric__item_count",
+      "importance": 0.0011566868180422573
+    },
+    {
+      "feature": "numeric__seller_city",
+      "importance": 0.001121526173691803
+    },
+    {
+      "feature": "categorical__customer_state_MG",
+      "importance": 0.0007930820617991025
+    },
+    {
+      "feature": "numeric__unique_sellers",
+      "importance": 0.0007590505051486424
+    },
+    {
+      "feature": "categorical__customer_state_PE",
+      "importance": 0.0005108952088411888
+    },
+    {
+      "feature": "categorical__seller_state_RJ",
+      "importance": 0.00022523795064091634
+    },
+    {
+      "feature": "categorical__seller_state_MG",
+      "importance": 0.0002018625007794067
+    },
+    {
+      "feature": "categorical__customer_state_DF",
+      "importance": 0.00011863493444817796
+    },
+    {
+      "feature": "categorical__customer_state_MA",
+      "importance": 0.00010117183150455678
+    },
+    {
+      "feature": "numeric__unique_products",
+      "importance": 6.559575946944173e-05
+    }
+  ],
+  "n_features": 52,
+  "validation_test_gap_primary_metric": 0.003211,
+  "known_limitations": [
+    "Temporal drift: validation and test orders occur later than training orders, which may contribute to the observed performance gap.",
+    "A broader Bayesian or random search could potentially improve absolute Average Precision further.",
+    "The model scores are used for ranking and thresholding; they should not be interpreted as calibrated probabilities of lateness without a separate calibration step.",
+    "Accuracy is dominated by the on-time class and is not the serving quality metric."
+  ],
+  "random_state": 42
+}

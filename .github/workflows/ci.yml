@@ -26,6 +26,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements/requirements-dev.txt
 
+      - name: Pull DVC artifacts from Azure
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: >-
+            DefaultEndpointsProtocol=https;AccountName=${{ secrets.AZURE_STORAGE_ACCOUNT_NAME }};AccountKey=${{ secrets.AZURE_STORAGE_ACCOUNT_KEY }};EndpointSuffix=core.windows.net
+        run: dvc pull
+
+      - name: Validate DVC metadata
+        run: dvc status
+
       - name: Ruff
         run: ruff check .
 
@@ -34,9 +43,6 @@ jobs:
 
       - name: Pre-commit
         run: pre-commit run --all-files
-
-      - name: Validate DVC metadata
-        run: dvc status
 
       - name: Run tests
         run: pytest -q

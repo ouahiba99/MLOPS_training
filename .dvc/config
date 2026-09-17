@@ -1,0 +1,5 @@
+[core]
+    remote = azure_storage
+['remote "azure_storage"']
+    url = azure://dvc
+    account_name = qafzaolistmlops

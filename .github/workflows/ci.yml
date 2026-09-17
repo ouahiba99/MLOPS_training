@@ -35,6 +35,11 @@ jobs:
       - name: Validate DVC metadata
         run: dvc status
 
+      - name: Initialize MLflow registry
+        env:
+          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
+        run: PYTHONPATH=. python scripts/log_to_mlflow.py
+
       - name: Ruff
         run: ruff check .
 

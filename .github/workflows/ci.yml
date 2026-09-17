@@ -11,6 +11,8 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      MLFLOW_TRACKING_URI: sqlite:///mlflow.db
 
     steps:
       - name: Checkout
@@ -35,10 +37,25 @@ jobs:
       - name: Validate DVC metadata
         run: dvc status
 
+      - name: Verify model artifact
+        run: test -f models/artifacts/final_model.joblib
+
       - name: Initialize MLflow registry
-        env:
-          MLFLOW_TRACKING_URI: sqlite:///mlflow.db
         run: PYTHONPATH=. python scripts/log_to_mlflow.py
+
+      - name: Verify MLflow registry
+        run: |
+          PYTHONPATH=. python - <<'PY'
+          from src.model_registry import get_champion_version_info
+
+          info = get_champion_version_info()
+
+          assert info["registered_model_name"] == "olist_late_delivery"
+          assert info["alias"] == "champion"
+          assert info["version"] == 1
+
+          print(f"MLflow champion: {info}")
+          PY
 
       - name: Ruff
         run: ruff check .
@@ -59,7 +76,6 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       packages: write

@@ -16,13 +16,20 @@ preprocessing objects" from the registry, even though the runtime service
 doesn't fetch them from there.
 """
 
+import os
+
 import mlflow
 
 from src.config import config
 
 
+def _configure_mlflow() -> None:
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", config.mlflow.tracking_uri)
+    mlflow.set_tracking_uri(tracking_uri)
+
+
 def load_registered_model():
-    mlflow.set_tracking_uri(config.mlflow.tracking_uri)
+    _configure_mlflow()
     model_uri = (
         f"models:/{config.mlflow.registered_model_name}@{config.mlflow.model_alias}"
     )
@@ -33,7 +40,7 @@ def get_champion_version_info() -> dict:
     """What version/run the alias currently points at — for /model/info,
     not the hot path. Re-pointing the alias to a new version is reflected
     here immediately, with no redeploy needed."""
-    mlflow.set_tracking_uri(config.mlflow.tracking_uri)
+    _configure_mlflow()
     client = mlflow.MlflowClient()
     mv = client.get_model_version_by_alias(
         config.mlflow.registered_model_name, config.mlflow.model_alias

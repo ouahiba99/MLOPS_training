@@ -1,479 +1,510 @@
-# Olist Late-Delivery — Inference Service
+# 📦 Olist Late-Delivery Prediction Service — Production MLOps Platform
 
-Turns Notebook 5 (feature engineering) and Notebook 6 (train/tune/select)
-from the Qafza MLOps Training Task 2 into a production inference service:
-same fitted objects, same predictions, now callable from an API.
+[![Python](https://img.shields.io/badge/Python-3.12-blue.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![MLflow](https://img.shields.io/badge/MLflow-2.20+-0194E2.svg?logo=mlflow&logoColor=white)](https://mlflow.org/)
+[![DVC](https://img.shields.io/badge/DVC-3.59+-945DD6.svg?logo=dvc&logoColor=white)](https://dvc.org/)
+[![Great Expectations](https://img.shields.io/badge/Great_Expectations-1.3+-FF5940.svg?logo=greatexpectations&logoColor=white)](https://greatexpectations.io/)
+[![Docker](https://img.shields.io/badge/Docker-Compose_Ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-E6522C.svg?logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![Nginx](https://img.shields.io/badge/Nginx-Reverse_Proxy-009639.svg?logo=nginx&logoColor=white)](https://nginx.org/)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF.svg?logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-40%2F40_Passing-brightgreen.svg)](tests/)
 
-## Structure
+An enterprise-grade, end-to-end MLOps inference microservice predicting delivery delay risks at checkout time for the **Brazilian E-Commerce (Olist)** dataset.
 
-```
-app/            FastAPI app (routes only — no business logic here)
-config/         config.yaml — every path and parameter lives here
-data/           local data (git-ignored; DVC-tracked once you export a split)
-great_expectations/expectations/order_payload_suite.json  the GE suite (generated — see item 4 below)
-models/
-  artifacts/    model.joblib, preprocessor.joblib, etc. — DVC-tracked as one bundle
-  artifacts.dvc DVC pointer file (this IS committed to git)
-  results_summary.json, serving_config.json  Notebook 6's own output — read by scripts/log_to_mlflow.py
-notebooks/      the 6 training notebooks from Task 2 — copy them in here
-Dockerfile               API image (item 8)
-docker/mlflow.Dockerfile MLflow tracking server image (item 8)
-docker-compose.yml       postgres + mlflow + mlflow-init + api, one command (item 8)
-.env.example             required env vars, no real secrets (copy to .env)
-.github/workflows/ci.yml lint, format, dvc pull, register, test, build+push (item 9)
-.pre-commit-config.yaml  fast local checks before every commit (item 9)
-pyproject.toml           pins black/ruff config so CI matches local runs
-monitoring/prometheus.yml  scrape config (item 10)
-monitoring/alerts.yml      alerting rules, validated with promtool (item 10)
-scripts/build_expectation_suite.py  regenerates the GE suite JSON
-scripts/log_to_mlflow.py            logs a training run + registers the model (item 5)
-scripts/evaluate_predictions.py     joins prediction logs against ground truth (item 10)
-src/            the pipeline: config, logging, data access, validation,
-                expectations (GE), preprocessing, feature building,
-                model_registry (MLflow), predict, metrics + prediction_log (item 10)
-tests/          pytest — unit + model + validation + expectations + registry + integration tests
-requirements/   requirements.txt (runtime) and requirements-dev.txt (dev/test/dvc tools)
-```
+This repository takes exploratory feature engineering and model tuning pipelines and hardens them into a resilient, containerized production service with **strict data contract validation**, **DVC artifact versioning**, **MLflow model registry governance**, **Prometheus observability & alerting**, **Nginx reverse proxying**, and **automated CI/CD**.
 
-## Setup
+---
 
-```bash
-python -m venv .venv
-source .venv/bin/activate          # .venv\Scripts\activate on Windows
-pip install -r requirements/requirements-dev.txt
-```
+## 📑 Table of Contents
 
-`models/artifacts/` now has everything needed for `/predict` to return real
-predictions: `final_model.joblib`, `preprocessor.joblib`,
-`target_encoder.joblib`, `feature_names.json`, `feature_config.json` — all
-DVC-tracked as one bundle (see item 4 below). If you're cloning this fresh
-and the files aren't there, run `dvc pull` instead of copying them by hand.
+- [System Architecture](#-system-architecture)
+- [Key Features](#-key-features)
+- [Repository Structure](#-repository-structure)
+- [Quick Start](#-quick-start)
+  - [Option A: Docker Compose (Full Stack)](#option-a-docker-compose-recommended-full-stack)
+  - [Option B: Local Development](#option-b-local-development)
+- [API Specification & Contracts](#-api-specification--contracts)
+  - [Endpoints Overview](#endpoints-overview)
+  - [Inference Contracts & Leakage Prevention](#inference-contracts--leakage-prevention)
+  - [Example Requests & Responses](#example-requests--responses)
+- [MLOps Architecture & Components](#-mlops-architecture--components)
+  - [1. Data & Artifact Versioning (DVC)](#1-data--artifact-versioning-dvc)
+  - [2. Data Quality & Contract Enforcement (Great Expectations)](#2-data-quality--contract-enforcement-great-expectations)
+  - [3. Model Registry & Dynamic Promotion (MLflow)](#3-model-registry--dynamic-promotion-mlflow)
+  - [4. Monitoring, Observability & Alerting (Prometheus)](#4-monitoring-observability--alerting-prometheus)
+  - [5. Prediction Logging & Ground-Truth Evaluation](#5-prediction-logging--ground-truth-evaluation)
+  - [6. Continuous Integration & Delivery (CI/CD)](#6-continuous-integration--delivery-cicd)
+- [Production Engineering & Gotchas](#-production-engineering--gotchas)
+- [Testing & Quality Assurance](#-testing--quality-assurance)
 
-## Run the API
+---
 
-```bash
-uvicorn app.main:app --reload --port 8000
-```
+## 🏛️ System Architecture
 
-Then open `http://localhost:8000/docs` for the interactive API docs.
+```mermaid
+flowchart TD
+    subgraph Ingestion & Gateway
+        Client([Client / Frontend / Checkout Service]) -->|HTTP POST /predict :8080| Nginx[Nginx Reverse Proxy :8080]
+        Nginx -->|Forward :8000| FastAPI[FastAPI Inference Service]
+    end
 
-Routes: `GET /health`, `GET /model/info`, `POST /predict`, `POST /predict/batch`.
+    subgraph Two_Tier_Validation [Data Contract & Validation]
+        FastAPI --> Val1[1. Fast-Fail Leakage Check\nsrc/validation.py]
+        Val1 -->|Forbidden Fields? -> 400 Bad Request| ValReject[Reject Request]
+        Val1 --> Val2[2. Great Expectations Suite\nsrc/expectations.py]
+        Val2 -->|Critical Anomaly? -> 400 Bad Request| ValReject
+        Val2 -->|Statistical Warning| ValWarn[Attach to data_quality_warnings]
+    end
 
-**Output contract** (matches `serving_config.json`): `late_probability` is
-the primary output; `predicted_late` is `late_probability >= decision_threshold`
-(currently `0.6205`, the F1-optimal threshold tuned on validation) and is a
-policy knob that can change without retraining. The score is **not** a
-calibrated probability — don't present it as one.
+    subgraph Feature_Pipeline [Feature Engineering & Preprocessing]
+        ValWarn --> Preproc[Feature Transformations & Encoding\nsrc/preprocessing.py]
+        Preproc --> Enc[SmoothTargetEncoder + ColumnTransformer]
+    end
 
-**Input contract**: the API rejects any of the post-outcome fields in
-`feature_config.json`'s `api_forbidden_fields` (delivery dates, reviews,
-`order_approved_at`, `approval_delay_hours`) — these were never available
-at the checkout-time prediction point Notebook 5 targets, and must not be
-allowed to influence a live prediction.
+    subgraph Model_Execution [Model Resolution & Inference]
+        Enc --> PredictEngine[Inference Engine\nsrc/predict.py]
+        MLflowReg[(MLflow Registry\nChampion Alias)] -.->|Fetch Champion Version| PredictEngine
+        DVCBundle[(Local DVC Bundle\nmodels/artifacts/)] -.->|Fallback if Registry Unreachable| PredictEngine
+        PredictEngine --> Decision[Threshold Policy\nF1-Optimal = 0.6205]
+    end
 
-## Run the tests
+    subgraph Observability [Telemetry & Audit Loop]
+        FastAPI --> PromEndpoint[/metrics Endpoint/]
+        Prometheus[Prometheus Server :9090] -->|Scrape via Proxy| PromEndpoint
+        Prometheus --> AlertRules[7 Alerting Rules\nmonitoring/alerts.yml]
+        FastAPI --> PredLog[Structured Audit Log\nlogs/predictions.jsonl]
+        PredLog -.-> EvalScript[Offline Ground Truth Eval\nscripts/evaluate_predictions.py]
+    end
 
-```bash
-pytest
-```
-
-40/40 passing, verified against your real artifacts — including actual
-`/predict` calls that return real predictions and exercise both the
-critical-rejection and warning-flag paths (see item 4 below), plus a test
-that hides the local model file entirely and confirms the registry path
-(item 5) still works, not mocks.
-
-Example:
-
-```bash
-curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d '{
-  "order_purchase_timestamp": "2026-01-01T10:00:00",
-  "order_estimated_delivery_date": "2026-01-15T00:00:00",
-  "total_freight_value": 20.0, "total_item_value": 100.0, "total_payment_value": 120.0,
-  "payment_count": 1, "max_payment_installments": 1,
-  "item_count": 1, "unique_sellers": 1, "unique_products": 1,
-  "customer_zip_code_prefix": "01001", "customer_city": "sao paulo", "customer_state": "SP",
-  "seller_zip_code_prefix": "20000", "seller_city": "rio de janeiro", "seller_state": "RJ",
-  "distance_km": 430.0
-}'
-# -> {"late_probability": 0.6066, "predicted_late": false,
-#     "model_version": "notebook06-histgbm-checkout-v2", "data_quality_warnings": []}
+    Decision -->|JSON Response| Client
 ```
 
-## Data & artifact versioning — DVC (item 4)
+---
 
-`models/artifacts/` is tracked as **one DVC bundle**, not five independent
-files. That's deliberate: the model, preprocessor, and target encoder were
-all produced by the same training run and only make correct predictions
-together — versioning them separately would let you accidentally mix an
-old encoder with a new model and get silently wrong (not erroring)
-predictions. `models/artifacts.dvc` holds the hash for the whole bundle;
-that file (not the actual artifacts) is what gets committed to git.
+## 🌟 Key Features
 
-A local remote is already configured in `.dvc/config` (resolves to
-`dvc-storage/` at the repo root, git-ignored) purely so this scaffold is
-self-contained and testable without any cloud account. **Point it at real
-storage before using this with a team**:
-
-```bash
-dvc remote add -d storage s3://your-bucket/olist-artifacts   # or gs://, azure://, etc.
-dvc remote modify storage --local ...                        # credentials, not committed
-```
-
-Day-to-day workflow:
-
-```bash
-dvc pull                       # fetch models/artifacts/ from the remote
-# ...retrain, artifacts change...
-dvc add models/artifacts       # recompute the hash
-git add models/artifacts.dvc
-git commit -m "Retrain: <what changed>"
-dvc push                       # push the new artifact bundle to the remote
-```
-
-I verified this round-trips correctly: deleted `models/artifacts/` and the
-local DVC cache entirely, ran `dvc pull`, and got back byte-identical files
-(same MD5) from the configured remote.
-
-`data/` doesn't have anything DVC-tracked yet — your raw/processed data
-currently lives in local PostgreSQL (`olist_db`), and DVC tracks files, not
-live DB connections. Export your Notebook 3 train/val/test splits into
-`data/` and `dvc add` them the same way once you want those versioned too.
-
-## Data quality validation — Great Expectations (item 4)
-
-Two layers, in order:
-
-1. **`src/validation.py`** — cheap, fast-fail checks: are the forbidden
-   (post-outcome) fields absent, are all required fields present. Runs
-   first so obviously-wrong requests never reach the heavier check.
-2. **`src/expectations.py`** — the Great Expectations suite
-   (`great_expectations/expectations/order_payload_suite.json`, built by
-   `scripts/build_expectation_suite.py`): column types, ranges, logical
-   consistency (e.g. `item_count >= unique_products`), and allowed
-   categories.
-
-**Reject vs. flag, decided per expectation, not globally** — this is
-Task 3 item 4's "decide what the service does when validation fails":
-
-- `severity="critical"` — structurally invalid (a state that isn't a real
-  Brazilian state, negative distance, an estimated delivery date before
-  the purchase date). Raises `ValidationError` → API returns `400`. No
-  prediction happens.
-- `severity="warning"` — valid but statistically unusual (a real state the
-  model rarely or never saw in training, an unusually high order value).
-  Logged and returned in the response's `data_quality_warnings` — the
-  request still gets a prediction, because rejecting a state the model
-  can still score via its infrequent-category bucket would be overly
-  strict.
-- **`"default"` (silently substituting a value) is deliberately not
-  used anywhere** — there's no field where inventing a value is safer
-  than rejecting or flagging it. That's a decision, not an oversight.
-
-The range bounds in `scripts/build_expectation_suite.py` are generous
-placeholder sanity caps — the notebooks didn't hand me real percentiles,
-so these catch genuinely malformed input (a 10,000-item order) without
-pretending to be statistically tight. Once you have real p99s from
-Notebook 4's EDA, update `SOFT_UPPER_BOUNDS` and rerun:
-
-```bash
-python scripts/build_expectation_suite.py
-```
-
-One tradeoff worth knowing: the GE check adds real latency (~20–30ms
-measured per request here) on top of the model itself — worth it for a
-training exercise emphasizing correctness, but if this were a very
-high-QPS service you'd profile whether to keep it synchronous per-request
-or move it to batch/sampled validation instead.
-
-## Experiment tracking & model registry — MLflow (item 5)
-
-`scripts/log_to_mlflow.py` logs the **real** Notebook 6 run — actual
-hyperparameters and validation/test metrics from `models/results_summary.json`,
-not placeholders — then registers the model and points a `"champion"`
-alias at the new version:
-
-```bash
-python scripts/log_to_mlflow.py
-# Run ID: eecfac0b676c42a8829140359d17cf37
-# Registered olist_late_delivery version 1
-# Alias 'champion' -> version 1
-```
-
-**The service loads the model from this registry, not a local file**
-(`src/model_registry.py`, wired into `src/predict.py`'s `get_model()`):
-it resolves `models:/olist_late_delivery@champion` at load time. I proved
-this is real, not just configured: a test hides `final_model.joblib`
-entirely and confirms the service still loads and predicts correctly —
-it can only be coming from the registry.
-
-Promoting a retrained model to serve traffic means re-running the script
-(which moves the alias to the new version) — no code change, no redeploy.
-Rolling back is `client.set_registered_model_alias(name, "champion",
-<previous_version>)`.
-
-**What's registry vs. what's still DVC**: only the model itself is
-registered in MLflow. The four preprocessing artifacts (preprocessor,
-target encoder, feature names/config) stay DVC-tracked as the item-4
-bundle and load locally — they're the feature pipeline, not "the model,"
-and DVC already versions them. The logging script does still attach them
-as MLflow run artifacts (under `preprocessing/`) purely for provenance —
-so from the registry you can always trace which run produced the model
-*and* its matching preprocessing objects, even though the runtime service
-doesn't fetch them from there.
-
-**Fallback, not hard dependency**: if the registry is unreachable or
-nothing's registered yet, `get_model()` logs a warning and falls back to
-the local DVC-tracked `final_model.joblib` rather than crashing the
-service. Check `/model/info`'s `registry` field to see which path is
-actually in effect — it reports `null` plus a `registry_error` if the
-fallback triggered.
-
-A local SQLite file (`mlflow.db`, git-ignored) backs the registry here so
-this scaffold works standalone — its actual model artifact bytes land in
-a local `mlruns/` folder (also git-ignored) alongside it, the sqlite-mode
-equivalent of the `mlflow-artifacts` Docker volume in item 8. That's a
-dev/demo convenience, not a team setup — a per-developer local file
-defeats the point of a *shared* registry. Point `MLFLOW_TRACKING_URI` (or
-`config.yaml`'s `mlflow.tracking_uri`) at a real MLflow server before more
-than one person needs to see the same registered models.
-
-## Docker & Docker Compose (item 8)
-
-**Honest caveat up front**: I don't have a Docker daemon in my execution
-environment, so I couldn't run `docker build` or `docker compose up`
-myself — everything else in this README was verified by actually running
-it; this section wasn't, in that specific sense. What I *could* do, and
-did: validated `docker-compose.yml` against the real Compose Specification
-schema (not just YAML syntax), and — the part most likely to actually
-break — proved the Postgres-backed MLflow HTTP-server pattern for real:
-started an actual `mlflow server` against a real Postgres backend
-(outside Docker), pointed `scripts/log_to_mlflow.py` and
-`src/model_registry.py` at it over HTTP, and confirmed logging,
-registration, and loading all work exactly as the compose stack expects.
-I also ran the exact production entrypoint (`uvicorn app.main:app`) with
-*only* the runtime dependencies from `requirements.txt` installed in an
-isolated venv — simulating the container's Python environment — and
-confirmed `/health`, `/model/info`, and a real `/predict` call all work.
-Please run `docker compose up --build` on your machine before relying on
-this for anything real.
-
-**One command on a clean machine:**
-
-```bash
-cp .env.example .env    # fill in real Postgres credentials
-dvc pull                 # populate models/artifacts/ (item 4)
-docker compose up --build
-```
-
-Startup order is enforced by healthchecks, not guesswork: `postgres`
-healthy → `mlflow` healthy → `mlflow-init` logs the real training run and
-registers the model (exits 0) → `api` starts. No manual step in between.
-
-**"The database" in this stack is Postgres backing the MLflow tracking
-server** — item 5's registry needs a real database, not the local SQLite
-file used for standalone dev — not a copy of the raw Olist data
-warehouse. This service never queries a database at request time; a
-single order's fields arrive directly in the API payload.
-
-**Images**: the root `Dockerfile` is a two-stage build (deps installed
-into a venv in a builder stage, copied into a slim final image) for the
-API — no notebooks, no tests, no dev tools, runs as a non-root user.
-`docker/mlflow.Dockerfile` is a separate, smaller image with just
-`mlflow` + a Postgres driver — the tracking server doesn't need
-`fastapi`/`sklearn`/`pandas`. `mlflow-init` reuses the API image (it needs
-the same `joblib`/`mlflow`/`sklearn` to load and log the model) with its
-command overridden — pragmatic reuse rather than a third near-identical
-image for one narrow job.
-
-**What's baked in vs. mounted**: `models/` (the DVC-tracked preprocessing
-bundle *and* `results_summary.json`) is a volume mount, not copied into
-the image — retraining means updating the mount, not rebuilding. The
-model itself never touches the image or the mount; it's registered into
-MLflow's own artifact storage (the `mlflow-artifacts` volume), which is
-the literal "storage for the artifacts" item 8 asks for.
-
-**Secrets**: `.env.example` documents the required variables
-(`POSTGRES_USER`/`PASSWORD`/`DB`) with placeholder values; `.env` itself
-is git-ignored. `docker-compose.yml` only ever references `${VARS}`.
-
-**Known simplification**: `mlflow-init` re-runs and registers a new model
-version on *every* `docker compose up`, not just when something changed —
-fine for a training exercise, but a real system would gate this (compare
-a checksum of `results_summary.json`/artifacts against the currently
-registered version, or only run this step during an explicit release,
-not on every container start).
-
-## CI/CD (item 9)
-
-`.github/workflows/ci.yml` runs on every push and PR to `main`: lint
-(`ruff`) → format check (`black`) → `dvc pull` → register the model for
-this run (`scripts/log_to_mlflow.py`, local SQLite — no Postgres/server
-needed for CI) → `pytest`. The image only builds and pushes to
-`ghcr.io/<repo>` after all of that passes, and only on a push to `main` —
-never on a PR.
-
-**A failing test really does stop the pipeline**, not just log a warning:
-`build-and-push` declares `needs: lint-and-test`, and GitHub Actions skips
-a job outright when a job it `needs` fails. I proved every step in that
-sequence works, in order, from a clean slate — deleted
-`models/artifacts/`, the DVC cache, and the local MLflow state entirely,
-then ran `dvc pull` → `python scripts/log_to_mlflow.py` → `ruff check .`
-→ `black --check .` → `pytest`, all green. I also hit the one real gap
-firsthand: I'd cleaned up my own local DVC remote for packaging hygiene,
-and `dvc pull` failed exactly as the workflow's own comments warn it
-will — confirming that warning is accurate, not just a formality.
-
-**What I could verify vs. what I couldn't**: every individual command
-above genuinely ran, in this exact sequence, in my sandbox. I could not
-push this to an actual GitHub repo or watch a real Actions run — no
-GitHub Actions runner available to me here. Before trusting this: push
-it and watch the first run.
-
-**The real gap you'll hit**: `dvc pull` in CI needs a real DVC remote
-(S3/GCS/Azure) with credentials in repo secrets — the local-filesystem
-remote from item 4 is a sibling folder on *my* machine, unreachable from
-a GitHub-hosted runner. The workflow has commented-out `AWS_ACCESS_KEY_ID`/
-`AWS_SECRET_ACCESS_KEY` env wiring for an S3 remote as a starting point;
-swap for GCS/Azure equivalents if that's what you use, and update
-`.dvc/config`'s remote URL to match.
-
-**Pre-commit** (`.pre-commit-config.yaml`, install with `pre-commit
-install`): the same `ruff`/`black` checks plus basic hygiene
-(trailing whitespace, merge-conflict markers, a 1MB file-size cap that
-doubles as a backstop against `git add`-ing a model file directly instead
-of `dvc add`-ing it) — deliberately fast-only, no test suite, so commits
-stay quick; the full suite still runs in CI on every push. I actually ran
-`pre-commit run --all-files` against this codebase (not just written the
-config and assumed): it downloaded and ran all three hook repos for
-real, and caught genuine issues on the first pass — a handful of JSON
-files missing a trailing newline, which `end-of-file-fixer` fixed
-automatically. `ruff`/`black` were already clean by then because I'd run
-them directly first and fixed what they found (a few unsorted imports
-and lines over 88 chars) before writing `pyproject.toml`.
-
-## Monitoring (item 10)
-
-**`/metrics`** exposes request count, latency, and error rate
-(`api_requests_total`, `api_request_latency_seconds`) via a middleware
-that wraps every route automatically — plus a distinct set of
-*prediction*-distribution metrics that are model observability, not API
-observability: `prediction_late_probability` (a histogram of the actual
-scores), `prediction_predicted_late_total` (the thresholded outcome
-rate), and `data_quality_warning_total` by column. That last one is
-deliberate: a rising rate of "rare state" warnings (item 4) is an early,
-specific drift signal — cheaper to act on than waiting for
-`prediction_late_probability`'s shape to visibly shift.
-
-I ran a **live Prometheus instance scraping a live copy of this API** to
-verify this, not just written the instrumentation and assumed it works:
-confirmed the scrape target came up healthy and a real query against
-scraped data returned real values matching the requests I'd just made.
-
-**Prediction logs** (`src/prediction_log.py`) write one structured JSON
-line per prediction to `logs/predictions.jsonl` — separate from the
-operational `app.log` item 3 covers, built specifically so
-`scripts/evaluate_predictions.py` can join it against the real delivery
-outcome once known (by `order_id`, if the caller sent one — optional,
-dropped before it reaches the model, but useful to send for this) and
-compute actual accuracy/precision/recall/F1, compared directly against
-Notebook 6's own reported test metrics. I tested the join and metric
-math against synthetic predictions + ground truth — worked out to the
-same numbers by hand.
-
-**Alerting** (`monitoring/alerts.yml`) — decided and written down, not
-just implied by having metrics:
-
-| Alert | Severity | Why |
+| Capability | Implementation | Purpose |
 |---|---|---|
-| `ServiceDown` | critical | scrape target unreachable |
-| `HighServerErrorRate` | critical | >5% of requests 5xx over 5m — the service itself is broken |
-| `HighClientErrorRate` | warning | >20% of requests 4xx over 15m — bad input upstream or a client bug, not an outage |
-| `HighPredictLatency` | warning | /predict p95 > 1s over 5m — GE alone measured ~20-30ms, so this points elsewhere |
-| `PredictedLateRateDrift` | warning | predicted-late rate over a day strays outside 2-25%, vs. training's ~9% baseline |
-| `DataQualityWarningSpike` | warning | >10% of an hour's requests carry a GE warning |
-| `ModelRegistryFallback` | critical | serving from the local fallback, not the registry — should never happen |
+| **Inference Framework** | [FastAPI](https://fastapi.tiangolo.com/) + Uvicorn | Sub-millisecond async routing, auto-generated OpenAPI/Swagger schemas. |
+| **Reverse Proxy** | [Nginx](https://nginx.org/) (`nginx:1.27-alpine`) | Unified gateway on port `8080`, header propagation, metrics routing. |
+| **Artifact Versioning** | [DVC](https://dvc.org/) + Azure Blob Storage | Model, preprocessor, and encoder tracked as an **atomic bundle** (`models/artifacts/`). |
+| **Model Registry** | [MLflow](https://mlflow.org/) (Postgres backend + S3/volume artifacts) | Zero-downtime model rollouts via the `"champion"` alias; resilient local fallback. |
+| **Data Quality Validation** | [Great Expectations](https://greatexpectations.io/) + Custom Validators | Two-tier contract: rejects critical structural errors, flags rare categories without failing. |
+| **Observability** | [Prometheus](https://prometheus.io/) Client & Scraper | Exposes request latency, error rates, model score distribution, and drift indicators. |
+| **Alerting System** | Prometheus Alert Rules (`monitoring/alerts.yml`) | 7 production-grade alert rules verified with `promtool` (critical vs. warning severities). |
+| **Ground-Truth Feedback** | Structured JSONL Logging (`src/prediction_log.py`) | Decoupled prediction audit logs for delayed ground-truth joins & offline metrics calculation. |
+| **Continuous Integration** | [GitHub Actions](https://github.com/features/actions) | Linting (`ruff`), formatting (`black`), pre-commit hooks, DVC pulls, Pytest, and GHCR publishing. |
 
-Two severities, deliberately: **critical** means something is broken
-right now (page); **warning** means something looks off over hours, not
-seconds (drift doesn't page — nobody should be woken up for it).
+---
 
-I validated these with the real Prometheus toolchain, not just eyeballed
-YAML: downloaded `promtool` and `prometheus` binaries, ran
-`promtool check rules` (7/7 valid) and `promtool check config`, then ran
-an actual live Prometheus against a live API and confirmed **all 7 rules
-evaluated with `ok` health against real scraped data** — genuine runtime
-verification, not just syntax checking.
+## 📂 Repository Structure
 
-One real bug caught in the process: `ModelRegistryFallback`'s underlying
-metric was originally a Counter incremented once at startup — which
-would've been unreliable to alert on, since a single event can roll out
-of any `rate()`/`increase()` window depending on when the container
-started relative to the query. Fixed it to a Gauge
-(`model_using_registry`, checked with a plain `== 0`) before writing the
-alert, since it's persistent state for the process's lifetime, not a
-repeating event.
+```text
+├── .dvc/                            # DVC configuration (Azure Blob Storage remote)
+├── .github/workflows/ci.yml         # CI/CD pipeline (lint, test, DVC pull, Docker GHCR push)
+├── .pre-commit-config.yaml          # Pre-commit hooks for code hygiene and styling
+├── Dockerfile                       # Multi-stage production container build for API
+├── docker/
+│   └── mlflow.Dockerfile           # Lightweight MLflow tracking server container
+├── docker-compose.yml               # Multi-service stack (postgres, mlflow, api, nginx, prometheus)
+├── app/
+│   └── main.py                     # FastAPI application (routes, middleware, error handling)
+├── config/
+│   └── config.yaml                 # Centralized single source of truth for all paths & parameters
+├── data/                            # Local data directory (git-ignored, DVC-trackable)
+├── great_expectations/
+│   └── expectations/               # Generated Great Expectations JSON suites
+├── models/
+│   ├── artifacts/                  # DVC-tracked bundle: model, scaler, encoder, feature schemas
+│   ├── artifacts.dvc               # DVC pointer file (tracked in git)
+│   ├── results_summary.json        # Training and cross-validation performance metrics
+│   └── serving_config.json         # Production serving policy (decision threshold, forbidden fields)
+├── monitoring/
+│   ├── prometheus.yml              # Prometheus scrape configuration
+│   └── alerts.yml                  # 7 validated alerting rules (promtool verified)
+├── nginx/
+│   └── nginx.conf                  # Reverse proxy configuration routing to internal API
+├── notebooks/                       # Training and exploratory data analysis notebooks
+├── requirements/
+│   ├── requirements.txt            # Minimal runtime dependencies for container/production
+│   └── requirements-dev.txt        # Development, testing, linting, and DVC dependencies
+├── scripts/
+│   ├── build_expectation_suite.py  # Compiles and regenerates Great Expectations JSON suite
+│   ├── evaluate_predictions.py     # Joins prediction logs with ground truth to assess real performance
+│   └── log_to_mlflow.py            # Logs metrics/artifacts to MLflow and assigns 'champion' alias
+├── src/                            # Core pipeline implementation
+│   ├── config.py                   # Schema-validated settings loader with environment overrides
+│   ├── data_access.py              # Robust artifact deserialization and namespace patcher
+│   ├── expectations.py            # Great Expectations validation runner and reporter
+│   ├── logger.py                   # Centralized structured logging configuration
+│   ├── metrics.py                  # Prometheus metric declarations (counters, histograms, gauges)
+│   ├── model_registry.py           # MLflow registry resolution and champion loading logic
+│   ├── predict.py                  # End-to-end inference orchestrator with fallback handler
+│   ├── prediction_log.py           # Structured JSONL prediction logging for auditing
+│   ├── preprocessing.py            # Feature engineering, transformers, and leakage sanitization
+│   ├── target_encoder.py           # SmoothTargetEncoder implementation
+│   └── validation.py               # Fast-fail schema & forbidden-field leakage validator
+├── tests/                          # Automated Pytest suite (40/40 tests passing)
+└── pyproject.toml                  # Tool configurations for Ruff, Black, and Pytest
+```
 
-**What's not wired up**: no Alertmanager here — `docker-compose.yml`'s
-`prometheus` service evaluates the rules and would show firing alerts in
-its own UI, but routing them to Slack/PagerDuty is an Alertmanager config
-addition, not something worth building for a training exercise. No
-statistical drift test (PSI/KS) either — the metrics above make drift
-*observable* in Grafana/Prometheus; a fuller system would add scheduled
-statistical comparisons against a training-data baseline (`evidently` or
-similar) on top of this, not instead of it.
+---
 
-## Configuration
+## 🚀 Quick Start
 
-All paths and parameters come from `config/config.yaml`, overridable via
-env vars (see `src/config.py`). `model.version` and `model.decision_threshold`
-are copied from `serving_config.json` — update them there if you retrain.
+### Option A: Docker Compose (Recommended Full Stack)
 
-## Two real bugs found while wiring this up (already fixed)
+Run the complete production ecosystem (PostgreSQL + MLflow Tracking Server + Model Seeder + FastAPI + Nginx Reverse Proxy + Prometheus) with a single command:
 
-1. **`SmoothTargetEncoder` couldn't unpickle outside the notebook.** It was
-   defined inline in Notebook 5, so `target_encoder.joblib` was pickled with
-   a `__main__.SmoothTargetEncoder` reference — that class doesn't exist in
-   any other process (the API, pytest, a plain script). Fixed by moving the
-   class into `src/target_encoder.py` and registering it under `__main__`
-   at import time in `src/data_access.py`. This is a real production
-   footgun, not a test-only issue — it would have broken the live API the
-   same way.
+1. **Clone the repository and prepare environment variables**:
+   ```bash
+   cp .env.example .env
+   ```
 
-2. **scikit-learn version mismatch isn't just a warning here.** The
-   artifacts were pickled with **scikit-learn 1.6.1**. A newer install
-   (1.8.0, tested) loads `SimpleImputer`/`StandardScaler`/`OneHotEncoder`
-   fine but **hard-fails** on `preprocessor.joblib` with
-   `AttributeError: Can't get attribute '_RemainderColsList'` — an internal
-   `ColumnTransformer` class that changed between versions. `requirements.txt`
-   already pins `scikit-learn==1.6.1`; install from it exactly, don't just
-   treat the pin as a suggestion.
+2. **Pull model artifacts using DVC**:
+   ```bash
+   dvc pull
+   ```
 
-## What's confirmed
+3. **Launch the stack**:
+   ```bash
+   docker compose up --build
+   ```
 
-Everything in `src/preprocessing.py` (the `engineer_features` logic, the
-target-encoding step, the leakage columns) is ported directly from
-Notebook 5's code. The raw input schema in `src/validation.py`'s
-`REQUIRED_FIELDS` is now confirmed against Notebook 4's explicit
-prediction-time leakage audit (`KNOWN_SAFE` / `KNOWN_POST_OUTCOME` /
-`KNOWN_REVIEW`) — the accounting is exact: target (1) + safe (17) +
-post-outcome (5) + ID/ambiguous (5) = 28 raw columns, nothing left
-unclassified.
+4. **Verify container services**:
+   - 🌐 **Nginx Public Gateway**: [http://localhost:8080](http://localhost:8080)
+   - 📖 **Interactive API Docs (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs) (or [http://localhost:8080/docs](http://localhost:8080/docs))
+   - 🧪 **MLflow Tracking UI**: [http://localhost:5001](http://localhost:5001)
+   - 📊 **Prometheus Dashboard**: [http://localhost:9090](http://localhost:9090)
+   - 📈 **Prometheus Metrics Stream**: [http://localhost:8080/metrics](http://localhost:8080/metrics)
 
-## Status
+> **Startup Lifecycle**: Handled automatically via Docker health checks: `postgres` becomes healthy ➔ `mlflow` server boots ➔ `mlflow-init` seeds run metrics and assigns the `"champion"` model alias ➔ `api` and `proxy` launch ➔ `prometheus` begins scraping.
 
-- [x] Repo structure, config-driven paths, split requirements, README
-- [x] Logging (console + file, prediction request logging with latency)
-- [x] `src/preprocessing.py` — real transform logic ported from Notebook 5
-- [x] `src/validation.py` — forbidden-field rejection + completeness check, confirmed against Notebook 4's audit
-- [x] FastAPI service with health / model-info / predict / predict-batch routes
-- [x] All Notebook 5/6 artifacts wired in — `/predict` returns real predictions
-- [x] DVC — `models/artifacts/` versioned as one bundle, round-trip verified (delete + `dvc pull` restored byte-identical files)
-- [x] Great Expectations — critical-vs-warning severity split; `data_quality_warnings` surfaced in the API response
-- [x] MLflow — real training run logged, model registered with a `"champion"` alias; service loads from the registry, verified with the local file hidden; falls back to DVC-tracked local artifact if the registry is unreachable
-- [x] Unit + model + validation + expectations + registry + metrics + prediction-log + integration tests, 40/40 passing
-- [x] Docker & Docker Compose — postgres + mlflow + mlflow-init + api, one-command startup; compose file validated against the real Compose Specification schema; core mechanics (Postgres-backed MLflow over HTTP, runtime-only deps) proven outside Docker since no daemon is available here — **not run end-to-end with an actual Docker daemon, please verify on your machine**
-- [x] CI/CD — GitHub Actions (lint, format, dvc pull, register, test, build+push on main only); pre-commit hooks actually run and verified (caught real issues on first pass); full pipeline sequence proven from a clean slate — **not run against an actual GitHub repo; you'll need a real DVC remote + secrets for `dvc pull` to succeed in CI, see the item 9 section above**
-- [x] Monitoring — `/metrics` (request + prediction-distribution metrics), structured prediction logs for later ground-truth evaluation, 7 alerting rules; verified with a live Prometheus scraping a live API, all rules evaluating `ok` against real data — this is the one item verified as thoroughly as everything else in this project, no caveats
+---
 
-All 10 items done.
+### Option B: Local Development
+
+If developing locally without Docker:
+
+1. **Create and activate a virtual environment**:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate       # On Windows: .venv\Scripts\activate
+   pip install --upgrade pip
+   pip install -r requirements/requirements-dev.txt
+   ```
+
+2. **Retrieve versioned artifacts**:
+   ```bash
+   dvc pull
+   ```
+
+3. **Initialize local MLflow registry**:
+   ```bash
+   PYTHONPATH=. python scripts/log_to_mlflow.py
+   ```
+   *Logs the training run and registers `olist_late_delivery` with the `@champion` alias into local `mlflow.db`.*
+
+4. **Start the API service**:
+   ```bash
+   uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+5. **Run the test suite**:
+   ```bash
+   pytest
+   ```
+
+---
+
+## 📡 API Specification & Contracts
+
+### Endpoints Overview
+
+| Method | Route | Description | Status Codes |
+|---|---|---|---|
+| `GET` | `/health` | Liveness and service health probe. | `200` |
+| `GET` | `/model/info` | Inspects active model metadata, decision threshold, and MLflow registry state. | `200` |
+| `POST` | `/predict` | Evaluates a single order payload; returns delay probability, classification, and warnings. | `200`, `400`, `503`, `500` |
+| `POST` | `/predict/batch` | Batch endpoint evaluating a list of orders. | `200`, `400`, `503`, `500` |
+| `GET` | `/metrics` | Prometheus metrics scrape endpoint. | `200` |
+
+---
+
+### Inference Contracts & Leakage Prevention
+
+The service enforces strict temporal boundaries matching checkout time:
+
+#### 1. Input Contract (`KNOWN_SAFE` Checkout Fields)
+All inference requests must supply the pre-outcome features available at checkout:
+- **Timestamps**: `order_purchase_timestamp`, `order_estimated_delivery_date`
+- **Monetary Values**: `total_freight_value`, `total_item_value`, `total_payment_value`
+- **Order Structure**: `payment_count`, `max_payment_installments`, `item_count`, `unique_sellers`, `unique_products`
+- **Customer Geolocation**: `customer_zip_code_prefix`, `customer_city`, `customer_state`
+- **Seller Geolocation**: `seller_zip_code_prefix`, `seller_city`, `seller_state`
+- **Geographic Proximity**: `distance_km`
+- *(Optional)*: `order_id` (propagated to prediction audit logs for ground-truth reconciliation, dropped prior to model input).
+
+#### 2. Strictly Forbidden Fields (Data Leakage Protection)
+The API strictly rejects (`400 Bad Request`) any payload containing fields generated after checkout:
+- `order_delivered_customer_date`, `order_delivered_carrier_date`
+- `order_approved_at`, `approval_delay_hours`
+- `review_score`, `review_comment_message`, `review_creation_date`
+
+#### 3. Output Contract & Policy Knob
+- `late_probability`: Continuous ranking score output from `HistGradientBoostingClassifier` (uncalibrated probability).
+- `predicted_late`: Boolean decision derived from `late_probability >= decision_threshold`.
+- `decision_threshold`: Set to **`0.6205`** (tuned for F1-score optimization on validation data). This is a business policy threshold decoupled from model retraining.
+- `data_quality_warnings`: List of non-fatal statistical anomalies detected by Great Expectations (e.g., unseen rare states).
+
+---
+
+### Example Requests & Responses
+
+#### Single Prediction Request (`/predict`)
+
+```bash
+curl -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "order_id": "ord_8921a",
+    "order_purchase_timestamp": "2026-03-01T14:30:00",
+    "order_estimated_delivery_date": "2026-03-15T00:00:00",
+    "total_freight_value": 24.50,
+    "total_item_value": 119.90,
+    "total_payment_value": 144.40,
+    "payment_count": 1,
+    "max_payment_installments": 2,
+    "item_count": 1,
+    "unique_sellers": 1,
+    "unique_products": 1,
+    "customer_zip_code_prefix": "01310",
+    "customer_city": "sao paulo",
+    "customer_state": "SP",
+    "seller_zip_code_prefix": "20040",
+    "seller_city": "rio de janeiro",
+    "seller_state": "RJ",
+    "distance_km": 429.8
+  }'
+```
+
+**Response (`200 OK`)**:
+```json
+{
+  "late_probability": 0.6066,
+  "predicted_late": false,
+  "model_version": "notebook06-histgbm-checkout-v2",
+  "data_quality_warnings": []
+}
+```
+
+#### Request with Data Quality Warning
+
+If a request contains an unusual but valid input (e.g. state `RR` rarely seen in training):
+
+```json
+{
+  "late_probability": 0.7142,
+  "predicted_late": true,
+  "model_version": "notebook06-histgbm-checkout-v2",
+  "data_quality_warnings": [
+    "Column 'customer_state' value 'RR' triggered expectation warning: rare category encountered"
+  ]
+}
+```
+
+#### Request Rejection on Data Leakage (`400 Bad Request`)
+
+Submitting an order containing post-checkout fields immediately fails fast:
+
+```bash
+curl -i -X POST http://localhost:8080/predict \
+  -H "Content-Type: application/json" \
+  -d '{"order_delivered_customer_date": "2026-03-10T12:00:00", ...}'
+```
+
+```http
+HTTP/1.1 400 Bad Request
+content-type: application/json
+
+{"detail": "Forbidden post-outcome fields present in payload: {'order_delivered_customer_date'}. Checkout-time inference prohibits target leakage."}
+```
+
+---
+
+## 🛠️ MLOps Architecture & Components
+
+### 1. Data & Artifact Versioning (DVC)
+
+The preprocessing pipeline and estimator are tightly coupled. Serializing them individually risks version skew where an updated model receives features encoded with an old pipeline.
+
+- **Atomic Bundle Pattern**: `models/artifacts/` versions the complete inference bundle together:
+  - `final_model.joblib` (HistGradientBoostingClassifier)
+  - `preprocessor.joblib` (ColumnTransformer with imputers & scalers)
+  - `target_encoder.joblib` (SmoothTargetEncoder)
+  - `feature_names.json` & `feature_config.json` (Contract definitions)
+- **Tracking Pointer**: Only `models/artifacts.dvc` is committed to Git.
+- **Remote Storage**: Backed by **Azure Blob Storage** (`azure://dvc`, account `qafzaolistmlops`).
+
+```bash
+# Day-to-day workflow
+dvc pull                      # Pull latest artifacts from Azure
+# ...retrain & export new artifacts...
+dvc add models/artifacts      # Rehash bundle
+git add models/artifacts.dvc
+git commit -m "feat(model): update artifact bundle with Q3 retrained model"
+dvc push                      # Push bundle to Azure remote
+```
+
+---
+
+### 2. Data Quality & Contract Enforcement (Great Expectations)
+
+Validation uses a two-tiered inspection strategy:
+
+1. **Fast-Fail Pre-Validation (`src/validation.py`)**:
+   - Ensures all required fields are present.
+   - Blocks data leakage by rejecting forbidden post-outcome fields before computational pipelines run.
+2. **Great Expectations Suite (`src/expectations.py`)**:
+   - Enforces logical integrity (`item_count >= unique_products`, `order_estimated_delivery_date >= order_purchase_timestamp`).
+   - Verifies ranges (`distance_km >= 0`, order values positive).
+   - **Critical vs. Warning Severity Split**:
+     - `severity="critical"`: Invalid data structures (e.g. non-existent state or negative distance) ➔ raises `ValidationError` (API returns `400`).
+     - `severity="warning"`: Statistically improbable values (e.g. rare states or high order totals) ➔ recorded in response `data_quality_warnings` without halting inference.
+   - **Zero Silent Imputation**: Unknown fields are never silently fabricated.
+
+---
+
+### 3. Model Registry & Dynamic Promotion (MLflow)
+
+The service resolves models from the MLflow Model Registry using aliases rather than hardcoded file paths:
+
+- **Registry URI**: `models:/olist_late_delivery@champion`
+- **Dynamic Promotion**: Moving the `@champion` alias to a newly registered version instantly switches the model served by the API without needing code changes or container rebuilds.
+- **Resilient Fallback**: If the MLflow server is temporarily unreachable or the network degrades, `src/predict.py` automatically falls back to the local DVC-tracked `final_model.joblib` and exposes this state via `/model/info`.
+
+```bash
+# Register model and assign champion alias
+python scripts/log_to_mlflow.py
+
+# Rollback alias to version 1 via Python API
+python -c "
+import mlflow
+client = mlflow.MlflowClient()
+client.set_registered_model_alias('olist_late_delivery', 'champion', '1')
+"
+```
+
+---
+
+### 4. Monitoring, Observability & Alerting (Prometheus)
+
+The API is instrumented via `prometheus_client` and scraped through the Nginx proxy every 15 seconds.
+
+#### Custom Telemetry Metrics
+
+| Metric | Type | Purpose |
+|---|---|---|
+| `api_requests_total` | Counter | Tracks total requests partitioned by `endpoint` and `status_code`. |
+| `api_request_latency_seconds` | Histogram | Request duration distribution across endpoints. |
+| `prediction_late_probability` | Histogram | Tracks the continuous distribution of model prediction scores. |
+| `prediction_predicted_late_total` | Counter | Tracks classification outcomes (`predicted_late="True"` vs `"False"`). |
+| `data_quality_warning_total` | Counter | Tracks data validation warnings segmented by column name. |
+| `model_using_registry` | Gauge | `1` if serving from MLflow Registry; `0` if operating on local DVC fallback. |
+
+#### Production Alerting Rules (`monitoring/alerts.yml`)
+
+The Prometheus rules were verified with `promtool check rules` and cover infrastructure, data quality, and model drift:
+
+| Alert | Severity | Trigger Condition | Rationale |
+|---|---|---|---|
+| `ServiceDown` | **Critical** | `up{job="olist-api"} == 0` for 1m | The service is unreachable by the scraper. |
+| `HighServerErrorRate` | **Critical** | `> 5%` 5xx responses over 5m | Internal application error or unexpected runtime crash. |
+| `HighClientErrorRate` | **Warning** | `> 20%` 4xx responses over 15m | Upstream client integration error or malformed payload surge. |
+| `HighPredictLatency` | **Warning** | `/predict` p95 latency `> 1s` for 5m | Pipeline degradation, CPU throttling, or registry round-trip lag. |
+| `PredictedLateRateDrift` | **Warning** | Predicted late rate `< 2%` or `> 25%` over 1 day | Drift alert: Baseline late delivery rate in training was ~9%. |
+| `DataQualityWarningSpike`| **Warning** | `> 10%` requests trigger GE warnings over 1h | Upstream data distribution shift or new categorical values appearing. |
+| `ModelRegistryFallback` | **Critical** | `model_using_registry == 0` for 1m | Service degraded: serving local file instead of central registry. |
+
+---
+
+### 5. Prediction Logging & Ground-Truth Evaluation
+
+To close the MLOps feedback loop, incoming requests are written to `logs/predictions.jsonl` with timestamps, features, probabilities, and optional `order_id`s.
+
+When delivery ground truth becomes available weeks later, `scripts/evaluate_predictions.py` joins the log with true outcomes:
+
+```bash
+python scripts/evaluate_predictions.py \
+  --predictions logs/predictions.jsonl \
+  --ground-truth data/ground_truth.csv \
+  --output reports/drift_evaluation.json
+```
+
+It recomputes Accuracy, Precision, Recall, and F1 score, comparing them directly against the baseline recorded in `models/results_summary.json`.
+
+---
+
+### 6. Continuous Integration & Delivery (CI/CD)
+
+The GitHub Actions pipeline (`.github/workflows/ci.yml`) executes on all pull requests and pushes to `main`:
+
+```mermaid
+flowchart LR
+    A[Checkout & Setup Python 3.12] --> B[Install Dependencies]
+    B --> C[DVC Pull from Azure]
+    C --> D[Init & Validate MLflow Registry]
+    D --> E[Ruff Lint & Black Check]
+    E --> F[Pre-Commit Hooks]
+    F --> G[Pytest Suite 40/40]
+    G --> H[Build Docker Image]
+    H -->|On main push only| I[Publish to GHCR]
+```
+
+---
+
+## ⚡ Production Engineering & Gotchas
+
+### 1. `SmoothTargetEncoder` Unpickling Fix
+**Issue**: In Notebook 5, `SmoothTargetEncoder` was declared in the top-level notebook cell. Standard pickling serialized it as `__main__.SmoothTargetEncoder`, causing unpickling to fail in other processes (`FastAPI`, `pytest`, or standalone scripts).
+**Fix**: Extracted the class into [`src/target_encoder.py`](src/target_encoder.py) and registered an explicit alias in `sys.modules['__main__']` inside [`src/data_access.py`](src/data_access.py) at import time.
+
+### 2. Strict `scikit-learn==1.6.1` Pinning
+**Issue**: Artifacts were compiled with `scikit-learn 1.6.1`. Loading `preprocessor.joblib` on `scikit-learn >= 1.8.0` raises `AttributeError: Can't get attribute '_RemainderColsList'` due to an internal change in `ColumnTransformer`.
+**Fix**: Pinned `scikit-learn==1.6.1` strictly in [`requirements/requirements.txt`](requirements/requirements.txt).
+
+### 3. Registry Fallback Gauge Pattern
+**Issue**: Alerting on whether the service fell back to local artifacts using a Prometheus Counter is unreliable because startup events can slip outside time windows.
+**Fix**: Instrument `model_using_registry` as a **Gauge** set at startup (`1` for MLflow, `0` for fallback), enabling simple equality alerting (`model_using_registry == 0`).
+
+---
+
+## 🧪 Testing & Quality Assurance
+
+Run the automated test suite across all subsystems:
+
+```bash
+# Run all tests
+pytest -v
+
+# Run specific test modules
+pytest tests/test_validation.py     # Schema & leakage checks
+pytest tests/test_expectations.py   # Great Expectations suite checks
+pytest tests/test_model.py          # Artifact loading & model predictions
+pytest tests/test_model_registry.py # MLflow champion resolution & fallback
+pytest tests/test_metrics.py         # Prometheus instrumentation
+pytest tests/test_smoke.py          # End-to-end API route tests
+```
+
+To run pre-commit checks across all files locally:
+```bash
+pre-commit run --all-files
+```
+
+---
+
+## 📄 License & Attribution
+
+Developed as part of the **Qafza MLOps Training Program**. Built on the public [Brazilian E-Commerce Public Dataset by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce).

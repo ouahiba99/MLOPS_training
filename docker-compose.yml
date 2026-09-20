@@ -139,7 +139,7 @@ services:
     depends_on:
       proxy:
         condition: service_started
-  
+
   proxy:
     image: nginx:1.27-alpine
     ports:

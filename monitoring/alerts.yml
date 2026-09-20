@@ -131,3 +131,30 @@ groups:
             API to it. A Gauge, checked with a plain == comparison, not a
             rate: this is persistent state for the process's whole
             lifetime, not a repeating event.
+
+      - alert: HighExpectationsStageLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(prediction_pipeline_stage_latency_seconds_bucket{stage="expectations"}[5m])) by (le)
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Great Expectations validation p95 stage latency above 100ms"
+          description: >
+            The expectations validation stage p95 latency is {{ $value }}s
+            over the last 5 minutes. Check for memory pressure or suite bloat.
+
+      - alert: HighInFlightRequests
+        expr: sum(api_requests_in_flight) > 50
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High concurrent in-flight requests saturation (>50)"
+          description: >
+            There are currently {{ $value }} requests being processed concurrently,
+            indicating potential server saturation or worker blockage.
+

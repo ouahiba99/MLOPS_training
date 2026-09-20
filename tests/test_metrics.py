@@ -68,6 +68,8 @@ def test_predict_records_late_probability_and_predicted_late():
     late_after = REGISTRY.get_sample_value(
         "prediction_predicted_late_total", {"predicted_late": predicted_late}
     )
+    assert count_after is not None
+    assert late_after is not None
     assert count_after >= count_before + 1
     assert late_after == late_before + 1
 
@@ -106,3 +108,112 @@ def test_metrics_endpoint_returns_prometheus_text_format():
     response = client.get("/metrics")
     assert response.status_code == 200
     assert "api_requests_total" in response.text
+    assert "prediction_pipeline_stage_latency_seconds" in response.text
+    assert "prediction_input_distance_km" in response.text
+
+
+def test_pipeline_stage_latency_recorded():
+    payload = {
+        "order_purchase_timestamp": "2026-01-01T10:00:00",
+        "order_estimated_delivery_date": "2026-01-15T00:00:00",
+        "total_freight_value": 20.0,
+        "total_item_value": 100.0,
+        "total_payment_value": 120.0,
+        "payment_count": 1,
+        "max_payment_installments": 1,
+        "item_count": 1,
+        "unique_sellers": 1,
+        "unique_products": 1,
+        "customer_zip_code_prefix": "01001",
+        "customer_city": "sao paulo",
+        "customer_state": "SP",
+        "seller_zip_code_prefix": "20000",
+        "seller_city": "rio de janeiro",
+        "seller_state": "RJ",
+        "distance_km": 430.0,
+    }
+    response = client.post("/predict", json=payload)
+    assert response.status_code == 200
+
+    for stage in ["validation", "expectations", "features", "inference", "logging"]:
+        val = REGISTRY.get_sample_value(
+            "prediction_pipeline_stage_latency_seconds_count", {"stage": stage}
+        )
+        assert val is not None and val >= 1.0
+
+
+def test_input_feature_histograms_recorded():
+    payload = {
+        "order_purchase_timestamp": "2026-01-01T10:00:00",
+        "order_estimated_delivery_date": "2026-01-15T00:00:00",
+        "total_freight_value": 35.5,
+        "total_item_value": 150.0,
+        "total_payment_value": 185.5,
+        "payment_count": 1,
+        "max_payment_installments": 2,
+        "item_count": 1,
+        "unique_sellers": 1,
+        "unique_products": 1,
+        "customer_zip_code_prefix": "01001",
+        "customer_city": "sao paulo",
+        "customer_state": "SP",
+        "seller_zip_code_prefix": "20000",
+        "seller_city": "rio de janeiro",
+        "seller_state": "RJ",
+        "distance_km": 520.0,
+    }
+    dist_before = REGISTRY.get_sample_value("prediction_input_distance_km_count") or 0.0
+    client.post("/predict", json=payload)
+    dist_after = REGISTRY.get_sample_value("prediction_input_distance_km_count")
+    assert dist_after is not None
+    assert dist_after >= dist_before + 1.0
+
+
+def test_batch_size_metric_recorded():
+    payload = {
+        "order_purchase_timestamp": "2026-01-01T10:00:00",
+        "order_estimated_delivery_date": "2026-01-15T00:00:00",
+        "total_freight_value": 20.0,
+        "total_item_value": 100.0,
+        "total_payment_value": 120.0,
+        "payment_count": 1,
+        "max_payment_installments": 1,
+        "item_count": 1,
+        "unique_sellers": 1,
+        "unique_products": 1,
+        "customer_zip_code_prefix": "01001",
+        "customer_city": "sao paulo",
+        "customer_state": "SP",
+        "seller_zip_code_prefix": "20000",
+        "seller_city": "rio de janeiro",
+        "seller_state": "RJ",
+        "distance_km": 430.0,
+    }
+    batch_before = REGISTRY.get_sample_value("prediction_batch_size_count") or 0.0
+    response = client.post("/predict/batch", json=[payload, payload])
+    assert response.status_code == 200
+    batch_after = REGISTRY.get_sample_value("prediction_batch_size_count")
+    assert batch_after is not None
+    assert batch_after >= batch_before + 1.0
+
+
+def test_health_probes():
+    live_res = client.get("/health/live")
+    assert live_res.status_code == 200
+    assert live_res.json()["status"] == "alive"
+
+    ready_res = client.get("/health/ready")
+    assert ready_res.status_code == 200
+    assert ready_res.json()["status"] == "ready"
+    assert ready_res.json()["model_loaded"] is True
+
+
+def test_monitoring_summary_endpoint():
+    response = client.get("/monitoring/summary")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "ok"
+    assert "uptime_seconds" in data
+    assert "model" in data
+    assert "inference_stats" in data
+    assert data["model"]["version"] is not None

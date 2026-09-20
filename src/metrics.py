@@ -61,3 +61,56 @@ MODEL_SOURCE = Gauge(
     "cached), so this is persistent state to alert on, not a rate of "
     "events that could roll out of an alerting window.",
 )
+
+# Pipeline-level breakdown: measures time in validation, GE,
+# features, model, and logging
+PIPELINE_STAGE_LATENCY = Histogram(
+    "prediction_pipeline_stage_latency_seconds",
+    "Latency breakdown by prediction pipeline stage in seconds",
+    ["stage"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
+)
+
+# Concurrency & traffic telemetry
+IN_FLIGHT_REQUESTS = Gauge(
+    "api_requests_in_flight",
+    "Number of concurrent HTTP requests currently in flight",
+    ["endpoint"],
+)
+
+BATCH_SIZE = Histogram(
+    "prediction_batch_size",
+    "Distribution of batch sizes in /predict/batch requests",
+    buckets=(1, 5, 10, 25, 50, 100, 250),
+)
+
+# Model configuration & governance metadata
+MODEL_DECISION_THRESHOLD = Gauge(
+    "model_decision_threshold",
+    "Active F1-optimal decision threshold for classification",
+)
+
+MODEL_INFO = Gauge(
+    "model_info",
+    "Metadata for the active model and serving configuration",
+    ["model_name", "model_version", "model_alias"],
+)
+
+# Real-time input feature distribution tracking for drift detection
+INPUT_DISTANCE_KM = Histogram(
+    "prediction_input_distance_km",
+    "Distribution of customer-seller distance in km from incoming requests",
+    buckets=(50, 100, 250, 500, 750, 1000, 1500, 2000, 3000),
+)
+
+INPUT_TOTAL_PAYMENT = Histogram(
+    "prediction_input_total_payment_value",
+    "Distribution of total payment value from incoming requests",
+    buckets=(20, 50, 100, 200, 500, 1000, 2000, 5000),
+)
+
+INPUT_FREIGHT_VALUE = Histogram(
+    "prediction_input_freight_value",
+    "Distribution of freight value from incoming requests",
+    buckets=(10, 20, 30, 50, 75, 100, 150, 200),
+)

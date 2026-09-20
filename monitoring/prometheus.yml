@@ -10,7 +10,37 @@ rule_files:
   - /etc/prometheus/alerts.yml
 
 scrape_configs:
+  # ── FastAPI inference API ────────────────────────────────────────────────
+  # All ML, request-latency, drift, and pipeline-stage metrics live here.
   - job_name: olist-api
     metrics_path: /metrics
     static_configs:
       - targets: ["proxy:8080"]
+
+  # ── Prometheus self-monitoring ───────────────────────────────────────────
+  # Tracks scrape duration, TSDB size, query engine latency, and rule
+  # evaluation timing — essential for knowing when Prometheus itself is
+  # healthy or behind on scraping.
+  - job_name: prometheus
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # ── Nginx proxy layer ────────────────────────────────────────────────────
+  # nginx-prometheus-exporter reads stub_status from the proxy container
+  # and converts it to proper Prometheus text format (active connections,
+  # accepted/handled requests, reading/writing/waiting states).
+  - job_name: nginx
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["nginx-exporter:9113"]
+
+  # ── PostgreSQL (via postgres-exporter) ───────────────────────────────────
+  # Surfaces connection pool usage, lock contention, table bloat, index
+  # usage, replication lag, and query throughput from pg_stat_* views.
+  # Critical for diagnosing MLflow tracking slowdowns or lock storms from
+  # concurrent experiment runs.
+  - job_name: postgres
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["postgres-exporter:9187"]

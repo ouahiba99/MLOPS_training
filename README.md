@@ -9,9 +9,10 @@
 [![Prometheus](https://img.shields.io/badge/Prometheus-Monitoring-E6522C.svg?logo=prometheus&logoColor=white)](https://prometheus.io/)
 [![Nginx](https://img.shields.io/badge/Nginx-Reverse_Proxy-009639.svg?logo=nginx&logoColor=white)](https://nginx.org/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub_Actions-2088FF.svg?logo=githubactions&logoColor=white)](.github/workflows/ci.yml)
-[![Tests](https://img.shields.io/badge/Tests-40%2F40_Passing-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-45%2F45_Passing-brightgreen.svg)](tests/)
 
 An enterprise-grade, end-to-end MLOps inference microservice predicting delivery delay risks at checkout time for the **Brazilian E-Commerce (Olist)** dataset.
+
 
 This repository takes exploratory feature engineering and model tuning pipelines and hardens them into a resilient, containerized production service with **strict data contract validation**, **DVC artifact versioning**, **MLflow model registry governance**, **Prometheus observability & alerting**, **Nginx reverse proxying**, and **automated CI/CD**.
 
@@ -225,11 +226,26 @@ If developing locally without Docker:
 
 | Method | Route | Description | Status Codes |
 |---|---|---|---|
-| `GET` | `/health` | Liveness and service health probe. | `200` |
+| `GET` | `/health` | Primary service health status. | `200` |
+| `GET` | `/health/live` | Kubernetes-standard liveness probe verifying ASGI worker responsiveness. | `200` |
+| `GET` | `/health/ready` | Readiness probe confirming model artifacts are loaded in memory. | `200`, `503` |
+| `GET` | `/monitoring/summary` | Real-time JSON telemetry summary (uptime, predictions count, late rate, model source). | `200` |
 | `GET` | `/model/info` | Inspects active model metadata, decision threshold, and MLflow registry state. | `200` |
 | `POST` | `/predict` | Evaluates a single order payload; returns delay probability, classification, and warnings. | `200`, `400`, `503`, `500` |
-| `POST` | `/predict/batch` | Batch endpoint evaluating a list of orders. | `200`, `400`, `503`, `500` |
-| `GET` | `/metrics` | Prometheus metrics scrape endpoint. | `200` |
+flowchartflowchart TD
+    A[Olist Dataset] --> B[ETL Pipeline]
+    B --> C[Feature Engineering]
+    C --> D[Feature Store]
+    D --> E[Model Training]
+    E --> F[Experiment Tracking (MLflow)]
+    F --> G[Model Registry]
+    G --> H[Model Serving (FastAPI / Ray Serve)]
+    H --> I[Containerization (Docker)]
+    I --> J[Deployment]
+    J --> K[Monitoring]
+    K --> L[Continuous Retraining]
+    L --> E| `GET` | `/metrics` | Prometheus metrics scrape endpoint. | `200` |
+
 
 ---
 
@@ -409,24 +425,35 @@ The API is instrumented via `prometheus_client` and scraped through the Nginx pr
 |---|---|---|
 | `api_requests_total` | Counter | Tracks total requests partitioned by `endpoint` and `status_code`. |
 | `api_request_latency_seconds` | Histogram | Request duration distribution across endpoints. |
+| `api_requests_in_flight` | Gauge | Number of concurrent requests currently being processed by endpoint. |
+| `prediction_pipeline_stage_latency_seconds` | Histogram | High-resolution latency breakdown by pipeline stage (`validation`, `expectations`, `features`, `inference`, `logging`). |
 | `prediction_late_probability` | Histogram | Tracks the continuous distribution of model prediction scores. |
 | `prediction_predicted_late_total` | Counter | Tracks classification outcomes (`predicted_late="True"` vs `"False"`). |
+| `prediction_batch_size` | Histogram | Distribution of batch sizes received at `/predict/batch`. |
 | `data_quality_warning_total` | Counter | Tracks data validation warnings segmented by column name. |
+| `prediction_input_distance_km` | Histogram | Real-time distribution of shipping distances for drift detection. |
+| `prediction_input_total_payment_value` | Histogram | Real-time distribution of order payment totals for financial drift. |
+| `prediction_input_freight_value` | Histogram | Real-time distribution of shipping fees. |
 | `model_using_registry` | Gauge | `1` if serving from MLflow Registry; `0` if operating on local DVC fallback. |
+| `model_decision_threshold` | Gauge | Active decision threshold value (`0.6205`). |
+| `model_info` | Gauge | Static model metadata labels (`model_name`, `model_version`, `model_alias`). |
 
 #### Production Alerting Rules (`monitoring/alerts.yml`)
 
-The Prometheus rules were verified with `promtool check rules` and cover infrastructure, data quality, and model drift:
+The Prometheus rules were verified with `promtool check rules` and cover infrastructure, pipeline stages, data quality, and model drift:
 
 | Alert | Severity | Trigger Condition | Rationale |
 |---|---|---|---|
 | `ServiceDown` | **Critical** | `up{job="olist-api"} == 0` for 1m | The service is unreachable by the scraper. |
 | `HighServerErrorRate` | **Critical** | `> 5%` 5xx responses over 5m | Internal application error or unexpected runtime crash. |
 | `HighClientErrorRate` | **Warning** | `> 20%` 4xx responses over 15m | Upstream client integration error or malformed payload surge. |
-| `HighPredictLatency` | **Warning** | `/predict` p95 latency `> 1s` for 5m | Pipeline degradation, CPU throttling, or registry round-trip lag. |
+| `HighPredictLatency` | **Warning** | `/predict` p95 latency `> 1s` for 5m | Overall pipeline degradation, CPU throttling, or registry lag. |
+| `HighExpectationsStageLatency` | **Warning** | Expectations stage p95 `> 100ms` for 5m | Validation suite execution bottleneck or memory pressure. |
+| `HighInFlightRequests` | **Warning** | `sum(api_requests_in_flight) > 50` for 2m | High server saturation and worker thread queueing. |
 | `PredictedLateRateDrift` | **Warning** | Predicted late rate `< 2%` or `> 25%` over 1 day | Drift alert: Baseline late delivery rate in training was ~9%. |
 | `DataQualityWarningSpike`| **Warning** | `> 10%` requests trigger GE warnings over 1h | Upstream data distribution shift or new categorical values appearing. |
 | `ModelRegistryFallback` | **Critical** | `model_using_registry == 0` for 1m | Service degraded: serving local file instead of central registry. |
+
 
 ---
 

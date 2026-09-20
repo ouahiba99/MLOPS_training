@@ -30,8 +30,14 @@ from src.features import build_features
 from src.logger import get_logger
 from src.metrics import (
     DATA_QUALITY_WARNING_COUNT,
+    INPUT_DISTANCE_KM,
+    INPUT_FREIGHT_VALUE,
+    INPUT_TOTAL_PAYMENT,
     LATE_PROBABILITY,
+    MODEL_DECISION_THRESHOLD,
+    MODEL_INFO,
     MODEL_SOURCE,
+    PIPELINE_STAGE_LATENCY,
     PREDICTED_LATE_COUNT,
 )
 from src.model_registry import load_registered_model
@@ -41,6 +47,14 @@ from src.validation import validate_order_payload
 logger = get_logger(__name__)
 
 _model = None  # loaded lazily, once per process
+
+# Initialize static model metadata gauges
+MODEL_DECISION_THRESHOLD.set(config.model.decision_threshold)
+MODEL_INFO.labels(
+    model_name=config.model.name,
+    model_version=config.model.version,
+    model_alias=config.mlflow.model_alias,
+).set(1)
 
 
 def get_model():
@@ -72,14 +86,29 @@ def get_model():
 def predict_order(payload: dict[str, Any]) -> dict[str, Any]:
     start = time.perf_counter()
 
+    # Stage 1: Validation (fast-fail schema & leakage checks)
+    t0 = time.perf_counter()
     validate_order_payload(payload)
+    t1 = time.perf_counter()
+    PIPELINE_STAGE_LATENCY.labels(stage="validation").observe(t1 - t0)
+
+    # Stage 2: Great Expectations data quality checks
     raw_df = pd.DataFrame([payload])
     data_quality_warnings = validate_data_quality(raw_df)
-    features = build_features(raw_df)
+    t2 = time.perf_counter()
+    PIPELINE_STAGE_LATENCY.labels(stage="expectations").observe(t2 - t1)
 
+    # Stage 3: Feature Engineering & Preprocessing
+    features = build_features(raw_df)
+    t3 = time.perf_counter()
+    PIPELINE_STAGE_LATENCY.labels(stage="features").observe(t3 - t2)
+
+    # Stage 4: Model Inference
     model = get_model()
     late_probability = float(model.predict_proba(features)[:, 1][0])
     predicted_late = late_probability >= config.model.decision_threshold
+    t4 = time.perf_counter()
+    PIPELINE_STAGE_LATENCY.labels(stage="inference").observe(t4 - t3)
 
     result = {
         "late_probability": late_probability,
@@ -100,12 +129,34 @@ def predict_order(payload: dict[str, Any]) -> dict[str, Any]:
     if data_quality_warnings:
         logger.warning("data quality warnings for request: %s", data_quality_warnings)
 
+    # Telemetry: Prediction distributions & warnings
     LATE_PROBABILITY.observe(late_probability)
     PREDICTED_LATE_COUNT.labels(predicted_late=str(predicted_late)).inc()
     for warning in data_quality_warnings:
         column = warning.split(":", 1)[0]
         DATA_QUALITY_WARNING_COUNT.labels(column=column).inc()
 
+    # Telemetry: Real-time input feature distribution tracking for drift detection
+    if "distance_km" in payload and payload["distance_km"] is not None:
+        try:
+            INPUT_DISTANCE_KM.observe(float(payload["distance_km"]))
+        except (ValueError, TypeError):
+            pass
+    if "total_payment_value" in payload and payload["total_payment_value"] is not None:
+        try:
+            INPUT_TOTAL_PAYMENT.observe(float(payload["total_payment_value"]))
+        except (ValueError, TypeError):
+            pass
+    if "total_freight_value" in payload and payload["total_freight_value"] is not None:
+        try:
+            INPUT_FREIGHT_VALUE.observe(float(payload["total_freight_value"]))
+        except (ValueError, TypeError):
+            pass
+
+    # Stage 5: Structured audit logging
+    t_log_start = time.perf_counter()
     log_prediction(payload, result)
+    t_log_end = time.perf_counter()
+    PIPELINE_STAGE_LATENCY.labels(stage="logging").observe(t_log_end - t_log_start)
 
     return result

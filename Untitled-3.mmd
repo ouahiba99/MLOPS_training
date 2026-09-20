@@ -1,0 +1,13 @@
+---
+id: 67334bbf-80b0-438c-a0cc-5c2453576a47
+---
+flowchart LR
+    A[Checkout & Setup Python 3.12] --> B[Install Dependencies]
+    B --> C[DVC Pull from Azure]
+    C --> D[Init & Validate MLflow Registry]
+    D --> E[Ruff Lint & Black Check]
+    E --> F[Pre-Commit Hooks]
+    F --> G[Pytest Suite 40/40]
+    G --> H[Build Docker Image]
+    H --> I[On main push only]
+    I --> J[Publish to GHCR]

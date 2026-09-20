@@ -121,6 +121,8 @@ services:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+    command:
+      - "--no-collector.wal"
     depends_on:
       postgres:
         condition: service_healthy

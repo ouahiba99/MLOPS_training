@@ -220,6 +220,88 @@ If developing locally without Docker:
 
 ---
 
+## ✅ Runtime Verification (example outputs)
+
+Use these quick checks to verify the full stack is healthy and serving as expected. The examples below are taken from a local verification run; your addresses/ports may differ.
+
+1) Verify containers and services (Docker Compose):
+
+```bash
+docker compose ps
+```
+
+Example output (services and ports):
+
+```
+trainingmlops-api-1        trainingmlops-api        Up (healthy)    0.0.0.0:8000->8000/tcp
+trainingmlops-proxy-1      nginx:1.27-alpine        Up              0.0.0.0:8080->8080/tcp
+trainingmlops-mlflow-1     trainingmlops-mlflow     Up (healthy)    0.0.0.0:5001->5000/tcp
+trainingmlops-prometheus-1 prom/prometheus          Up              0.0.0.0:9090->9090/tcp
+trainingmlops-grafana      grafana/grafana          Up              0.0.0.0:3000->3000/tcp
+trainingmlops-postgres-1   postgres:16-alpine       Up (healthy)
+```
+
+2) Git branch (confirm working branch):
+
+```bash
+git branch --show-current
+```
+
+Example: `main`
+
+3) Basic API health check:
+
+```bash
+curl -s http://localhost:8000/health
+```
+
+Example response:
+
+```json
+{"status":"ok"}
+```
+
+4) Active model information (inspect resolved model/version/threshold):
+
+```bash
+curl -s http://localhost:8000/model/info
+```
+
+Example response:
+
+```json
+{
+  "name":"olist_late_delivery",
+  "version":"notebook06-histgbm-checkout-v2",
+  "decision_threshold":0.6204567106325278,
+  "score_is_calibrated_probability":false
+}
+```
+
+5) Prometheus / monitoring checks (targets & prediction metrics):
+
+```bash
+curl -s 'http://localhost:9090/api/v1/query' --data-urlencode 'query=up'
+curl -s 'http://localhost:9090/api/v1/query' --data-urlencode 'query=prediction_predicted_late_total'
+```
+
+6) DVC status (ensure artifacts are present):
+
+```bash
+dvc --version && dvc status
+```
+
+Example: `3.67.1` and `Data and pipelines are up to date.`
+
+Quick troubleshooting pointers:
+- If `/health` is not `ok`, check `docker compose logs api` for tracebacks.
+- If model info returns `503` or empty model, verify `mlflow` is reachable and that `dvc pull` completed successfully.
+- If Prometheus shows missing targets, confirm the `proxy` and exporters are accessible on the configured ports.
+
+---
+
+---
+
 ## 📡 API Specification & Contracts
 
 ### Endpoints Overview

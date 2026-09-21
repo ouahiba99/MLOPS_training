@@ -140,6 +140,25 @@ services:
       proxy:
         condition: service_started
 
+  # Grafana visualizes Prometheus metrics and provides dashboards
+  # for API, model, data-quality, and infrastructure monitoring.
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: trainingmlops-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+
   proxy:
     image: nginx:1.27-alpine
     ports:
@@ -154,3 +173,4 @@ volumes:
   postgres-data:
   mlflow-artifacts:
   prometheus-data:
+  grafana-data:

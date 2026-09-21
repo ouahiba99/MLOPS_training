@@ -232,19 +232,7 @@ If developing locally without Docker:
 | `GET` | `/monitoring/summary` | Real-time JSON telemetry summary (uptime, predictions count, late rate, model source). | `200` |
 | `GET` | `/model/info` | Inspects active model metadata, decision threshold, and MLflow registry state. | `200` |
 | `POST` | `/predict` | Evaluates a single order payload; returns delay probability, classification, and warnings. | `200`, `400`, `503`, `500` |
-flowchartflowchart TD
-    A[Olist Dataset] --> B[ETL Pipeline]
-    B --> C[Feature Engineering]
-    C --> D[Feature Store]
-    D --> E[Model Training]
-    E --> F[Experiment Tracking (MLflow)]
-    F --> G[Model Registry]
-    G --> H[Model Serving (FastAPI / Ray Serve)]
-    H --> I[Containerization (Docker)]
-    I --> J[Deployment]
-    J --> K[Monitoring]
-    K --> L[Continuous Retraining]
-    L --> E| `GET` | `/metrics` | Prometheus metrics scrape endpoint. | `200` |
+| `GET` | `/metrics` | Prometheus metrics scrape endpoint. | `200` |
 
 
 ---

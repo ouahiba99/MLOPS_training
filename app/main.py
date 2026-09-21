@@ -39,6 +39,38 @@ logger = get_logger(__name__)
 
 app = FastAPI(title="Olist Late Delivery Prediction Service")
 
+
+@app.get("/")
+def root():
+    return {
+        "service": "Olist Late Delivery Prediction Service",
+        "status": "ok",
+        "endpoints": {
+            "documentation": {
+                "swagger_ui": "/docs",
+                "openapi_schema": "/openapi.json",
+                "redoc": "/redoc",
+            },
+            "health": {
+                "basic": "/health",
+                "liveness": "/health/live",
+                "readiness": "/health/ready",
+            },
+            "model": {
+                "info": "/model/info",
+            },
+            "monitoring": {
+                "summary": "/monitoring/summary",
+                "prometheus_metrics": "/metrics",
+            },
+            "prediction": {
+                "single": "/predict",
+                "batch": "/predict/batch",
+            },
+        },
+    }
+
+
 _START_TIME = time.time()
 
 

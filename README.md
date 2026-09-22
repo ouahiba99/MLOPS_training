@@ -569,7 +569,7 @@ flowchart LR
     E --> F[Pre-Commit Hooks]
     F --> G[Pytest Suite 40/40]
     G --> H[Build Docker Image]
-    H -->[On main push only] --> I[Publish to GHCR]
+    H --> I[Publish to GHCR Only on main push]
 ```
 
 ---
